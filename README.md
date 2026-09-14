@@ -41,7 +41,7 @@ Scan QR-koden med Expo Go. På CBS-netværk/eduroam: `npx expo start --tunnel`.
 
 ```
 App.js            navigation + global state
-components/       genbrugelige komponenter (knap, tekstfelt, billede)
+components/       genbrugelige komponenter (knap, tekstfelt)
 data/const.js     husdata og sider
 screens/          én fil pr. skærm
 styles/           al styling i GlobalStyle.js

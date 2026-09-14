@@ -28,6 +28,21 @@ export default function HomeScreen({ navigation }) {
           <View style={GlobalStyle.homeCard}>
             <Text style={GlobalStyle.homeTitle}>{HOUSE.name}</Text>
             <Text style={GlobalStyle.homeWelcome}>{HOUSE.welcome}</Text>
+
+            {/* Det gæster oftest leder efter: wifi og udtjekning */}
+            <View style={GlobalStyle.homeInfoRow}>
+              <View style={GlobalStyle.homeInfoItem}>
+                <Ionicons name="wifi-outline" size={22} color={GlobalStyle.colors.accent} />
+                <Text style={GlobalStyle.homeInfoLabel}>{HOUSE.wifiName}</Text>
+                <Text style={GlobalStyle.homeInfoValue}>{HOUSE.wifiPassword}</Text>
+              </View>
+              <View style={GlobalStyle.homeInfoItem}>
+                <Ionicons name="time-outline" size={22} color={GlobalStyle.colors.accent} />
+                <Text style={GlobalStyle.homeInfoLabel}>Udtjekning</Text>
+                <Text style={GlobalStyle.homeInfoValue}>{HOUSE.checkout}</Text>
+              </View>
+            </View>
+
             <ButtonComponent
               title="Se guiden"
               type="primary"

@@ -51,6 +51,7 @@ Afvig ikke yderligere uden at spørge.
 expo                            ~57.0.22
 expo-splash-screen              ~57.0.9
 expo-status-bar                 ~57.0.1
+expo-font                       ~57.0.4 (peer til @expo/vector-icons)
 react                           19.2.3
 react-native                    0.86.3
 @react-navigation/native        ^7.1.17
@@ -92,7 +93,6 @@ assets/                     ← billeder til demoen
 components/                 ← genbrugelige komponenter
   ButtonComponent.js
   TextInputComponent.js
-  PictureComponent.js
 data/
   const.js                  ← husdata + sider
 screens/                    ← én fil pr. skærm
