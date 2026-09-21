@@ -33,8 +33,9 @@ export default function HomeScreen({ navigation }) {
             <View style={GlobalStyle.homeInfoRow}>
               <View style={GlobalStyle.homeInfoItem}>
                 <Ionicons name="wifi-outline" size={22} color={GlobalStyle.colors.accent} />
-                <Text style={GlobalStyle.homeInfoLabel}>{HOUSE.wifiName}</Text>
-                <Text style={GlobalStyle.homeInfoValue}>{HOUSE.wifiPassword}</Text>
+                <Text style={GlobalStyle.homeInfoLabel}>Wifi</Text>
+                <Text style={GlobalStyle.homeInfoValue}>Navn: {HOUSE.wifiName}</Text>
+                <Text style={GlobalStyle.homeInfoValue}>Kode: {HOUSE.wifiPassword}</Text>
               </View>
               <View style={GlobalStyle.homeInfoItem}>
                 <Ionicons name="time-outline" size={22} color={GlobalStyle.colors.accent} />

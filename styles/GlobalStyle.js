@@ -304,6 +304,7 @@ export const GlobalStyle = StyleSheet.create({
   homeInfoItem: {
     flex: 1,
     alignItems: "center",
+    justifyContent: "center",
     backgroundColor: COLORS.background,
     borderRadius: 14,
     paddingVertical: 14,
