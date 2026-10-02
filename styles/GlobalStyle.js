@@ -166,8 +166,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  houseCreateCard: {
+    marginTop: 12,
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+  },
   ownerLogoutRow: {
-    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 12,
     paddingVertical: 24,
   },
   ownerCard: {

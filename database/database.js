@@ -13,15 +13,15 @@ import {
   getDocs,
   getDoc,
   doc,
-  setDoc,
   updateDoc,
   query,
   orderBy,
+  where,
   writeBatch,
   serverTimestamp,
 } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { PAGES } from '../data/const';
+import { HOUSE, PAGES } from '../data/const';
 
 // Indsæt dit eget firebaseConfig fra Firebase Console her
 // (Project settings → Your apps → din web-app).
@@ -51,20 +51,36 @@ const db = getFirestore(app);
 // Firebase Storage, hvor billederne ligger. Firestore gemmer kun linket til dem.
 const storage = getStorage(app);
 
-// Lægger startsiderne fra const.js op i Firestore-collectionen "pages".
-// Kører kun, hvis collectionen er tom, så vi ikke overskriver udlejerens ændringer.
-async function uploadStartPages() {
-  const snapshot = await getDocs(collection(db, 'pages'));
-  if (!snapshot.empty) {
-    return;
-  }
+// ---------- Huse ----------
+// Hvert hus er et dokument i "houses" med ownerId = udlejerens bruger-id.
+// Husets sider ligger i en undercollection: houses/{houseId}/pages/{pageId}.
+
+// Opretter et nyt hus for den udlejer, der er logget ind, og giver husets id tilbage.
+// Huset får standardteksterne fra const.js og de 8 standardsider, som udlejeren
+// derefter kan rette til.
+async function createHouse(name) {
+  const houseRef = doc(collection(db, 'houses')); // nyt dokument med et automatisk id
+
+  // Batch: huset og alle siderne skrives på én gang
+  const batch = writeBatch(db);
+  batch.set(houseRef, {
+    ownerId: auth.currentUser.uid,
+    name: name.trim(),
+    welcome: HOUSE.welcome,
+    checkout: HOUSE.checkout,
+    wifiName: HOUSE.wifiName,
+    wifiPassword: HOUSE.wifiPassword,
+    ownerName: HOUSE.ownerName,
+    ownerPhone: HOUSE.ownerPhone,
+    createdAt: serverTimestamp(),
+  });
 
   for (let i = 0; i < PAGES.length; i++) {
     const page = PAGES[i];
     // Sidens id bruges som dokument-id. Billedet (require) kan ikke gemmes
     // i databasen, så det bliver liggende lokalt i const.js.
     // order gemmer rækkefølgen, da Firestore ellers sorterer efter id.
-    await setDoc(doc(db, 'pages', page.id), {
+    batch.set(doc(db, 'houses', houseRef.id, 'pages', page.id), {
       title: page.title,
       icon: page.icon,
       active: page.active,
@@ -72,36 +88,46 @@ async function uploadStartPages() {
       order: i,
     });
   }
+
+  await batch.commit();
+  return houseRef.id;
 }
 
-// Henter alle sider fra Firestore i den rigtige rækkefølge.
+// Henter alle huse, der tilhører den udlejer, der er logget ind
+async function getHouses() {
+  const q = query(collection(db, 'houses'), where('ownerId', '==', auth.currentUser.uid));
+  const snapshot = await getDocs(q);
+  const houses = snapshot.docs.map((document) => ({ id: document.id, ...document.data() }));
+  // Sortér alfabetisk efter navn, så listen altid står i samme rækkefølge
+  return houses.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// ---------- Sider ----------
+
+// Henter alle sider i ét hus i den rigtige rækkefølge.
 // Billedet ligger ikke i databasen, så vi finder det i const.js ud fra sidens id.
-async function getPages() {
-  const snapshot = await getDocs(query(collection(db, 'pages'), orderBy('order')));
+async function getPages(houseId) {
+  const pagesRef = collection(db, 'houses', houseId, 'pages');
+  const snapshot = await getDocs(query(pagesRef, orderBy('order')));
 
   return snapshot.docs.map((document) => {
     const data = document.data();
     const localPage = PAGES.find((p) => p.id === document.id);
-
-    // Ældre sider i databasen har kun en `body`-tekst og ingen blokke.
-    // Dem laver vi om til én tekstblok, så resten af appen kun skal kende blokke.
-    const blocks = data.blocks ? data.blocks : [{ id: 'tekst-1', type: 'text', text: data.body || '' }];
-
     return {
       id: document.id,
       title: data.title,
       icon: data.icon,
       active: data.active,
-      blocks: blocks,
+      blocks: data.blocks,
       image: localPage ? localPage.image : null,
     };
   });
 }
 
-// Gemmer ændringer på én side, fx updatePage('koekken', { active: false }).
+// Gemmer ændringer på én side, fx updatePage(houseId, 'koekken', { active: false }).
 // updateDoc ændrer kun de felter, vi sender med – resten bliver stående.
-async function updatePage(pageId, changes) {
-  await updateDoc(doc(db, 'pages', pageId), changes);
+async function updatePage(houseId, pageId, changes) {
+  await updateDoc(doc(db, 'houses', houseId, 'pages', pageId), changes);
 }
 
 // Laver et unikt id til en ny blok, fx "1727862000000-4821".
@@ -111,14 +137,15 @@ function newBlockId() {
 }
 
 // Uploader et billede fra telefonen til Firebase Storage og giver linket tilbage.
-// `localUri` er stien til billedet på telefonen (fra kameraet).
-async function uploadImage(pageId, localUri) {
+// `localUri` er stien til billedet på telefonen (fra kameraet eller galleriet).
+async function uploadImage(houseId, pageId, localUri) {
   // Hent billedfilen som en "blob" (rå data), som Firebase kan uploade
   const response = await fetch(localUri);
   const blob = await response.blob();
 
-  // Billedet lægges i en mappe pr. side, fx pages/koekken/1727862000000.jpg
-  const imageRef = ref(storage, 'pages/' + pageId + '/' + Date.now() + '.jpg');
+  // Billedet lægges i en mappe pr. hus og side, fx houses/abc123/pages/koekken/1727862000000.jpg
+  const path = 'houses/' + houseId + '/pages/' + pageId + '/' + Date.now() + '.jpg';
+  const imageRef = ref(storage, path);
   await uploadBytes(imageRef, blob);
 
   // Linket kan vises direkte i et <Image>, og det er det, vi gemmer i billedblokken
@@ -179,7 +206,8 @@ function authErrorMessage(error) {
 export {
   auth,
   db,
-  uploadStartPages,
+  createHouse,
+  getHouses,
   getPages,
   updatePage,
   newBlockId,

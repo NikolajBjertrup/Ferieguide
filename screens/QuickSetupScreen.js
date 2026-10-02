@@ -26,7 +26,7 @@ function formatTid(millis) {
 
 // Udlejer: lynopsætning af én kategori. Udlejeren indtaler en talebesked,
 // Whisper laver den til tekst, og modellen skriver den om til guidetekst.
-export default function QuickSetupScreen({ navigation, route, pages, setPages }) {
+export default function QuickSetupScreen({ navigation, route, houseId, pages, setPages }) {
   const { pageId } = route.params;
   const page = pages.find((p) => p.id === pageId);
 
@@ -99,7 +99,7 @@ export default function QuickSetupScreen({ navigation, route, pages, setPages })
 
     setPages(pages.map((p) => (p.id === pageId ? { ...p, blocks: newBlocks } : p)));
     // Gem også i Firestore
-    updatePage(pageId, { blocks: newBlocks }).catch((error) =>
+    updatePage(houseId, pageId, { blocks: newBlocks }).catch((error) =>
       console.log('Kunne ikke gemme i Firestore:', error.message)
     );
     navigation.goBack();

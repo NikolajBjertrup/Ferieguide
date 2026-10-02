@@ -9,7 +9,7 @@ import { auth, updatePage } from '../database/database';
 
 // Udlejer: liste over ALLE sider. Switch slår siden til/fra for gæsten,
 // tryk på rækken åbner redigering.
-export default function OwnerPagesScreen({ navigation, pages, setPages }) {
+export default function OwnerPagesScreen({ navigation, houseId, pages, setPages }) {
   function toggleActive(pageId) {
     // State må ikke ændres direkte. Vi laver et nyt array, hvor kun den
     // valgte side er byttet ud med en kopi, der har active vendt om.
@@ -20,7 +20,7 @@ export default function OwnerPagesScreen({ navigation, pages, setPages }) {
     );
     // Gem den nye værdi i Firestore
     const page = pages.find((p) => p.id === pageId);
-    updatePage(pageId, { active: !page.active }).catch((error) =>
+    updatePage(houseId, pageId, { active: !page.active }).catch((error) =>
       console.log('Kunne ikke gemme i Firestore:', error.message)
     );
   }
@@ -40,6 +40,13 @@ export default function OwnerPagesScreen({ navigation, pages, setPages }) {
         ListFooterComponent={
           // Log ud: App.js opdager det via onAuthStateChanged og viser login-skærmen igen
           <View style={GlobalStyle.ownerLogoutRow}>
+            <ButtonComponent
+              title="Skift hus"
+              type="secondary"
+              width={200}
+              height={56}
+              onPress={() => navigation.navigate('Houses')}
+            />
             <ButtonComponent title="Log ud" type="secondary" width={200} height={56} onPress={() => signOut(auth)} />
           </View>
         }

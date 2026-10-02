@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { onAuthStateChanged } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import HomeScreen from './screens/HomeScreen';
@@ -14,10 +15,10 @@ import QuickSetupScreen from './screens/QuickSetupScreen';
 import CameraScreen from './screens/CameraScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
+import HousesScreen from './screens/HousesScreen';
 
-import { PAGES } from './data/const';
 import { GlobalStyle } from './styles/GlobalStyle';
-import { auth, uploadStartPages, getPages } from './database/database';
+import { auth, getPages } from './database/database';
 
 const Stack = createNativeStackNavigator();
 
@@ -26,36 +27,46 @@ export default function App() {
   const [user, setUser] = useState(null);
   // Firebase skal lige nå at tjekke AsyncStorage for et gemt login, før vi ved, om nogen er logget ind
   const [authChecked, setAuthChecked] = useState(false);
+  // Det hus, denne enhed viser (null = intet hus valgt endnu)
+  const [houseId, setHouseId] = useState(null);
+  // Global state: alle sider i det valgte hus. Når udlejeren redigerer,
+  // opdaterer vi denne state, og alle skærme ser ændringen.
+  const [pages, setPages] = useState([]);
 
   // onAuthStateChanged kalder vores funktion, hver gang nogen logger ind eller ud
   // (og én gang ved start). Funktionen den returnerer, stopper lytningen igen.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      // Enheden husker, hvilket hus den viste for denne udlejer sidst.
+      // Nøglen indeholder bruger-id'et, så to udlejere på samme enhed ikke blandes sammen.
+      let savedHouseId = null;
+      if (currentUser) {
+        savedHouseId = await AsyncStorage.getItem('selectedHouse_' + currentUser.uid);
+      }
+      setHouseId(savedHouseId);
       setUser(currentUser);
       setAuthChecked(true);
     });
     return unsubscribe;
   }, []);
 
-  // Global state: alle sider. PAGES fra const.js er kun startværdien.
-  // Når udlejeren redigerer, opdaterer vi denne state, og alle skærme ser ændringen.
-  const [pages, setPages] = useState(PAGES);
-
-  // Kører én gang, når appen starter (den tomme [] betyder "kun første gang").
-  // Lægger startsiderne op, hvis databasen er tom, og henter så siderne fra Firestore.
-  // Indtil svaret kommer (eller hvis der ingen internet er), vises siderne fra const.js.
+  // Henter husets sider, hver gang enheden skifter hus.
+  // [houseId] betyder: kør igen, når houseId ændrer sig.
   useEffect(() => {
-    async function loadPages() {
-      try {
-        await uploadStartPages();
-        const pagesFromDb = await getPages();
-        setPages(pagesFromDb);
-      } catch (error) {
-        console.log('Firestore-fejl:', error.message);
-      }
+    if (!houseId) {
+      return;
     }
-    loadPages();
-  }, []);
+    setPages([]); // Ryd det gamle hus' sider, mens de nye hentes
+    getPages(houseId)
+      .then((pagesFromDb) => setPages(pagesFromDb))
+      .catch((error) => console.log('Firestore-fejl:', error.message));
+  }, [houseId]);
+
+  // Vælg hus på denne enhed. Sendes som prop til HousesScreen.
+  function selectHouse(id) {
+    setHouseId(id);
+    AsyncStorage.setItem('selectedHouse_' + user.uid, id);
+  }
 
   // Mens Firebase tjekker login, viser vi bare en spinner
   if (!authChecked) {
@@ -84,6 +95,11 @@ export default function App() {
             <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Opret bruger' }} />
           </>
+        ) : houseId === null ? (
+          // Logget ind, men enheden har ikke valgt hus endnu
+          <Stack.Screen name="ChooseHouse" options={{ title: 'Vælg hus' }}>
+            {(props) => <HousesScreen {...props} houseId={houseId} selectHouse={selectHouse} />}
+          </Stack.Screen>
         ) : (
           <>
             <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
@@ -99,16 +115,23 @@ export default function App() {
             </Stack.Screen>
             <Stack.Screen name="OwnerLogin" component={OwnerLoginScreen} options={{ title: 'Udlejer-login' }} />
             <Stack.Screen name="OwnerPages" options={{ title: 'Rediger guiden' }}>
-              {(props) => <OwnerPagesScreen {...props} pages={pages} setPages={setPages} />}
+              {(props) => <OwnerPagesScreen {...props} houseId={houseId} pages={pages} setPages={setPages} />}
             </Stack.Screen>
             <Stack.Screen name="EditPage" options={{ title: 'Rediger side' }}>
-              {(props) => <EditPageScreen {...props} pages={pages} setPages={setPages} />}
+              {(props) => <EditPageScreen {...props} houseId={houseId} pages={pages} setPages={setPages} />}
             </Stack.Screen>
             <Stack.Screen name="QuickSetup" options={{ title: 'Lynopsætning' }}>
-              {(props) => <QuickSetupScreen {...props} pages={pages} setPages={setPages} />}
+              {(props) => <QuickSetupScreen {...props} houseId={houseId} pages={pages} setPages={setPages} />}
             </Stack.Screen>
             {/* Kameraet har ikke brug for pages – det sender bare billedlinket tilbage til EditPage */}
-            <Stack.Screen name="Camera" component={CameraScreen} options={{ title: 'Tag billede' }} />
+            <Stack.Screen name="Camera" options={{ title: 'Tag billede' }}>
+              {(props) => <CameraScreen {...props} houseId={houseId} />}
+            </Stack.Screen>
+            {/* "Skift hus" fra udlejertilstand. Samme skærm som ChooseHouse, men med et andet navn,
+                så React Navigation ved, at det er to forskellige steder i appen. */}
+            <Stack.Screen name="Houses" options={{ title: 'Skift hus' }}>
+              {(props) => <HousesScreen {...props} houseId={houseId} selectHouse={selectHouse} />}
+            </Stack.Screen>
           </>
         )}
       </Stack.Navigator>

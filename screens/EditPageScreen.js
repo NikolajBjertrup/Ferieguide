@@ -11,7 +11,7 @@ import { updatePage, newBlockId, uploadImage } from '../database/database';
 
 // Udlejer: rediger titel og sidens blokke (tekst og billeder).
 // Blokkene kan tilføjes, flyttes op/ned og slettes.
-export default function EditPageScreen({ navigation, route, pages, setPages }) {
+export default function EditPageScreen({ navigation, route, houseId, pages, setPages }) {
   const { pageId } = route.params;
   const page = pages.find((p) => p.id === pageId);
 
@@ -48,7 +48,7 @@ export default function EditPageScreen({ navigation, route, pages, setPages }) {
     setUploading(true);
     setError('');
     try {
-      const url = await uploadImage(pageId, result.assets[0].uri);
+      const url = await uploadImage(houseId, pageId, result.assets[0].uri);
       setBlocks((current) => [...current, { id: newBlockId(), type: 'image', url: url }]);
     } catch (e) {
       setError('Upload mislykkedes: ' + e.message);
@@ -93,7 +93,7 @@ export default function EditPageScreen({ navigation, route, pages, setPages }) {
     }
     setPages(pages.map((p) => (p.id === pageId ? { ...p, title: title, blocks: blocks } : p)));
     // Gem også i Firestore, så ændringen er der næste gang appen åbnes
-    updatePage(pageId, { title: title, blocks: blocks }).catch((error) =>
+    updatePage(houseId, pageId, { title: title, blocks: blocks }).catch((error) =>
       console.log('Kunne ikke gemme i Firestore:', error.message)
     );
     navigation.goBack();

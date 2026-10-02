@@ -11,7 +11,7 @@ import { uploadImage } from '../database/database';
 // Udlejer: tag et billede til en side. Bygger på kursets kamera-guide (07_kamera).
 // Når billedet er uploadet, sendes linket tilbage til EditPageScreen,
 // som lægger det ind som en ny billedblok.
-export default function CameraScreen({ navigation, route }) {
+export default function CameraScreen({ navigation, route, houseId }) {
   const { pageId } = route.params;
 
   // Hook fra expo-camera: fortæller om vi har lov til at bruge kameraet
@@ -39,7 +39,7 @@ export default function CameraScreen({ navigation, route }) {
   async function confirmPhoto() {
     setUploading(true);
     try {
-      const url = await uploadImage(pageId, photoUri);
+      const url = await uploadImage(houseId, pageId, photoUri);
       // Gå tilbage til EditPage og send linket med som param.
       // merge: true beholder de params, der allerede er der (pageId).
       navigation.navigate({ name: 'EditPage', params: { newImageUrl: url }, merge: true });
