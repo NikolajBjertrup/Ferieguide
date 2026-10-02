@@ -14,6 +14,7 @@ import ButtonComponent from '../components/ButtonComponent';
 import TextInputComponent from '../components/TextInputComponent';
 import { TranscribeAudio, RewriteToGuideText } from '../services/Request';
 import { GlobalStyle } from '../styles/GlobalStyle';
+import { updatePage } from '../database/database';
 
 // Gør millisekunder til fx "0:07"
 function formatTid(millis) {
@@ -87,6 +88,10 @@ export default function QuickSetupScreen({ navigation, route, pages, setPages })
   // Gem forslaget som sidens brødtekst og gå tilbage til listen
   function gem() {
     setPages(pages.map((p) => (p.id === pageId ? { ...p, body: suggestion } : p)));
+    // Gem også i Firestore
+    updatePage(pageId, { body: suggestion }).catch((error) =>
+      console.log('Kunne ikke gemme i Firestore:', error.message)
+    );
     navigation.goBack();
   }
 

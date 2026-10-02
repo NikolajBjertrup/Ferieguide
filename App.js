@@ -12,7 +12,7 @@ import QuickSetupScreen from './screens/QuickSetupScreen';
 
 import { PAGES } from './data/const';
 import { GlobalStyle } from './styles/GlobalStyle';
-import { uploadStartPages } from './database/database';
+import { uploadStartPages, getPages } from './database/database';
 
 const Stack = createNativeStackNavigator();
 
@@ -22,9 +22,19 @@ export default function App() {
   const [pages, setPages] = useState(PAGES);
 
   // Kører én gang, når appen starter (den tomme [] betyder "kun første gang").
-  // Lægger startsiderne op i Firestore, hvis databasen er tom.
+  // Lægger startsiderne op, hvis databasen er tom, og henter så siderne fra Firestore.
+  // Indtil svaret kommer (eller hvis der ingen internet er), vises siderne fra const.js.
   useEffect(() => {
-    uploadStartPages().catch((error) => console.log('Firestore-fejl:', error.message));
+    async function loadPages() {
+      try {
+        await uploadStartPages();
+        const pagesFromDb = await getPages();
+        setPages(pagesFromDb);
+      } catch (error) {
+        console.log('Firestore-fejl:', error.message);
+      }
+    }
+    loadPages();
   }, []);
 
   return (

@@ -3,6 +3,7 @@ import { Text, View, FlatList, Pressable, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { GlobalStyle } from '../styles/GlobalStyle';
+import { updatePage } from '../database/database';
 
 // Udlejer: liste over ALLE sider. Switch slår siden til/fra for gæsten,
 // tryk på rækken åbner redigering.
@@ -14,6 +15,11 @@ export default function OwnerPagesScreen({ navigation, pages, setPages }) {
       pages.map((page) =>
         page.id === pageId ? { ...page, active: !page.active } : page
       )
+    );
+    // Gem den nye værdi i Firestore
+    const page = pages.find((p) => p.id === pageId);
+    updatePage(pageId, { active: !page.active }).catch((error) =>
+      console.log('Kunne ikke gemme i Firestore:', error.message)
     );
   }
 

@@ -1,7 +1,16 @@
 // Opsætning af Firebase. Filen bygger på kursets guide (06_FirebaseLogin),
 // men bruger Firestore (databasen) i stedet for Authentication (login).
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, setDoc } from 'firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  doc,
+  setDoc,
+  updateDoc,
+  query,
+  orderBy,
+} from 'firebase/firestore';
 import { PAGES } from '../data/const';
 
 // Indsæt dit eget firebaseConfig fra Firebase Console her
@@ -46,4 +55,25 @@ async function uploadStartPages() {
   }
 }
 
-export { db, uploadStartPages };
+// Henter alle sider fra Firestore i den rigtige rækkefølge.
+// Billedet ligger ikke i databasen, så vi finder det i const.js ud fra sidens id.
+async function getPages() {
+  const snapshot = await getDocs(query(collection(db, 'pages'), orderBy('order')));
+
+  return snapshot.docs.map((document) => {
+    const localPage = PAGES.find((p) => p.id === document.id);
+    return {
+      id: document.id,
+      ...document.data(),
+      image: localPage ? localPage.image : null,
+    };
+  });
+}
+
+// Gemmer ændringer på én side, fx updatePage('koekken', { active: false }).
+// updateDoc ændrer kun de felter, vi sender med – resten bliver stående.
+async function updatePage(pageId, changes) {
+  await updateDoc(doc(db, 'pages', pageId), changes);
+}
+
+export { db, uploadStartPages, getPages, updatePage };

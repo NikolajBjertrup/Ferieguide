@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ButtonComponent from '../components/ButtonComponent';
 import TextInputComponent from '../components/TextInputComponent';
 import { GlobalStyle } from '../styles/GlobalStyle';
+import { updatePage } from '../database/database';
 
 // Udlejer: rediger titel og brødtekst på én side
 export default function EditPageScreen({ navigation, route, pages, setPages }) {
@@ -20,6 +21,10 @@ export default function EditPageScreen({ navigation, route, pages, setPages }) {
   function save() {
     setPages(
       pages.map((p) => (p.id === pageId ? { ...p, title: title, body: body } : p))
+    );
+    // Gem også i Firestore, så ændringen er der næste gang appen åbnes
+    updatePage(pageId, { title: title, body: body }).catch((error) =>
+      console.log('Kunne ikke gemme i Firestore:', error.message)
     );
     navigation.goBack();
   }
