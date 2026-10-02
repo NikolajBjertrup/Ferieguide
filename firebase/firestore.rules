@@ -1,0 +1,85 @@
+// Sikkerhedsregler for Firestore (FerieGuide).
+// Kopiér HELE filen ind i Firebase Console → Firestore Database → Rules → Publish.
+//
+// Grundprincip: alt er forbudt, medmindre en regel herunder tillader det.
+// request.auth  = den bruger, der spørger (null hvis ikke logget ind)
+// resource      = dokumentet, som det ser ud i databasen nu
+// request.resource = dokumentet, som det vil se ud efter skrivningen
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Hjælpefunktioner
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Ejer den indloggede bruger huset? (som det ser ud nu)
+    function ownsHouse(houseId) {
+      return get(/databases/$(database)/documents/houses/$(houseId)).data.ownerId == request.auth.uid;
+    }
+
+    // Ejer den indloggede bruger huset, efter skrivningen er lavet?
+    // Bruges, når huset og siderne oprettes i samme batch (createHouse).
+    function ownsHouseAfter(houseId) {
+      return getAfter(/databases/$(database)/documents/houses/$(houseId)).data.ownerId == request.auth.uid;
+    }
+
+    // ---------- Invitationskoder ----------
+    match /invites/{code} {
+      // Man må slå én kode op (for at tjekke den før oprettelse),
+      // men ikke hente en liste over alle koder.
+      allow get: if true;
+      allow list: if false;
+
+      // En ny bruger må markere en UBRUGT kode som brugt af sig selv – og intet andet.
+      allow update: if signedIn()
+        && resource.data.used == false
+        && request.resource.data.used == true
+        && request.resource.data.usedBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['used', 'usedBy']);
+
+      // Koder oprettes og slettes kun af os i Console
+      allow create, delete: if false;
+    }
+
+    // ---------- Brugere ----------
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+
+      // Brugerdokumentet må kun oprettes i samme batch, som en invitationskode
+      // markeres som brugt af netop denne bruger. Uden gyldig kode: ingen bruger.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && getAfter(/databases/$(database)/documents/invites/$(request.resource.data.inviteCode)).data.usedBy == uid;
+
+      allow update, delete: if false;
+    }
+
+    // ---------- Huse ----------
+    match /houses/{houseId} {
+      // Kun ejeren må se, rette og slette sit hus
+      allow read, delete: if signedIn() && resource.data.ownerId == request.auth.uid;
+
+      // Ejeren må rette husinfo, men ikke give huset til en anden
+      allow update: if signedIn()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId;
+
+      // Man må kun oprette huse til sig selv, og kun hvis man er en rigtig
+      // bruger (oprettet med invitationskode)
+      allow create: if signedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+
+      // Husets sider følger huset: kun ejeren har adgang
+      match /pages/{pageId} {
+        allow read, update, delete: if signedIn() && ownsHouse(houseId);
+        allow create: if signedIn() && ownsHouseAfter(houseId);
+      }
+    }
+
+    // Alt andet (fx den gamle "pages"-collection) er forbudt, fordi der ikke er nogen regel for det.
+  }
+}

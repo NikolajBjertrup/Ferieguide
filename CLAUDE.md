@@ -76,6 +76,7 @@ firebase                            ^12.19.0  Auth, Firestore, Storage
 expo-camera                         ~57.0.6   tag billede (kursets 07_kamera)
 expo-image-picker                   ~57.0.20  vælg billede fra galleri
 expo-audio                          ~57.0.5   talebesked i lynopsætning
+expo-linking                        ~57.0.11  deep link til "Opret bruger"
 react-native-dotenv                 ^3.4.11   OPENAI_API_KEY fra .env
 babel-preset-expo                   ~57.0.0   (devDependency)
 ```
@@ -114,6 +115,9 @@ data/
   const.js                  ← standardtekster: HOUSE og PAGES (skabelon for nye huse)
 database/
   database.js               ← AL Firebase-kode (som i kursets 06_FirebaseLogin)
+firebase/
+  firestore.rules           ← sikkerhedsregler, kopieres ind i Console
+  storage.rules
 services/
   Request.js                ← OpenAI: Whisper + omskrivning til guidetekst
 screens/                    ← én fil pr. skærm
@@ -203,6 +207,10 @@ Root er en Stack Navigator i `App.js` med **tre grene**, som vælges ud fra stat
 | `CameraScreen.js` | Udlejer | Tag billede, upload, send `newImageUrl` tilbage til `EditPage` |
 | `QuickSetupScreen.js` | Udlejer | Talebesked → Whisper → forslag, der erstatter første tekstblok |
 
+Deep link: `linking` i `App.js` mapper `register?code=KODE` til `Register`
+(scheme `ferieguide` i `app.json`). Linket virker kun, når ingen er logget ind
+på enheden, da `Register` kun findes i den gren.
+
 Navigation-params: send kun id'er (`pageId`) og små værdier (`newImageUrl`,
 `code`), aldrig hele objekter.
 
@@ -229,8 +237,13 @@ med `updatePage` / `updateHouse`. Ingen Redux, ingen Context.
 - Blaze-plan (kræves af Storage). Storage-bucket ligger i US-EAST1 (gratis kvote).
 - Authentication: Email/Password slået til.
 - Invitationskoder oprettes manuelt i `invites` med `used: false`.
-- Sikkerhedsregler: **midlertidige åbne regler til 31.12.2026**. Skal erstattes
-  af rigtige regler, der adskiller brugerne (se §9, trin 7).
+- Sikkerhedsregler ligger i `firebase/firestore.rules` og `firebase/storage.rules`
+  og kopieres manuelt ind i Console (Rules → Publish). Ændrer du datamodellen,
+  skal reglerne opdateres samtidig – og jeg skal publicere dem.
+  - Kun ejeren (`ownerId`) kan læse/skrive et hus, dets sider og dets billeder.
+  - `users/{uid}` kan kun oprettes i samme batch, som en invitationskode bruges.
+  - Huse kan kun oprettes af brugere med et `users`-dokument.
+  - Invitationskoder kan slås op enkeltvis, men ikke listes.
 
 ---
 
@@ -267,8 +280,8 @@ Jeg er studerende og skal kunne forklare koden bagefter. Derfor:
 - [x] 3. Flere huse pr. bruger, valgt hus huskes på enheden
 - [x] 4. Udlejertilstand med kodeord (PIN er fjernet)
 - [x] 5. Husinfo i databasen + EditHouseScreen
-- [ ] 6. Link (deep link), der åbner "Opret bruger" med koden udfyldt
-- [ ] 7. Sikkerhedsregler for Firestore og Storage + oprydning i gammel
+- [x] 6. Link (deep link), der åbner "Opret bruger" med koden udfyldt
+- [x] 7. Sikkerhedsregler for Firestore og Storage + oprydning i gammel
       `pages`-collection og gamle billeder under `pages/` i Storage
 
 Jeg committer og pusher selv efter hvert trin. Claude må ikke lave

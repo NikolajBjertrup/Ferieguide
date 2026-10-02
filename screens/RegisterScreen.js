@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Text, View, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +18,15 @@ export default function RegisterScreen({ route }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Hvis skærmen allerede er åben, når et link med en ny kode åbnes,
+  // ændres route.params.code. Så skriver vi den nye kode ind i feltet.
+  const codeFromLink = route.params?.code;
+  useEffect(() => {
+    if (codeFromLink) {
+      setCode(codeFromLink);
+    }
+  }, [codeFromLink]);
 
   async function register() {
     if (code.trim() === '') {

@@ -105,6 +105,9 @@ async function getHouses() {
 // Henter ét hus (navn, velkomsttekst, wifi osv.)
 async function getHouse(houseId) {
   const snapshot = await getDoc(doc(db, 'houses', houseId));
+  if (!snapshot.exists()) {
+    throw new Error('Huset findes ikke.');
+  }
   return { id: snapshot.id, ...snapshot.data() };
 }
 
@@ -157,7 +160,9 @@ async function uploadImage(houseId, pageId, localUri) {
   // Billedet lægges i en mappe pr. hus og side, fx houses/abc123/pages/koekken/1727862000000.jpg
   const path = 'houses/' + houseId + '/pages/' + pageId + '/' + Date.now() + '.jpg';
   const imageRef = ref(storage, path);
-  await uploadBytes(imageRef, blob);
+  // contentType fortæller Storage, at det er et billede. Sikkerhedsreglerne
+  // afviser filer, der ikke er billeder.
+  await uploadBytes(imageRef, blob, { contentType: 'image/jpeg' });
 
   // Linket kan vises direkte i et <Image>, og det er det, vi gemmer i billedblokken
   return await getDownloadURL(imageRef);

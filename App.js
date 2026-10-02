@@ -3,6 +3,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { onAuthStateChanged } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Linking from 'expo-linking';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import HomeScreen from './screens/HomeScreen';
@@ -22,6 +23,21 @@ import { GlobalStyle } from './styles/GlobalStyle';
 import { auth, getHouse, getPages } from './database/database';
 
 const Stack = createNativeStackNavigator();
+
+// Deep links: fortæller React Navigation, hvilke adresser der åbner hvilke skærme.
+// Invitationslinket fra købet ser fx sådan ud:
+//   ferieguide://register?code=SOMMER2026            (i en færdigbygget app)
+//   exp://192.168.1.10:8083/--/register?code=SOMMER2026  (i Expo Go under udvikling)
+// Linking.createURL('/') giver den rigtige start på adressen i begge tilfælde.
+// ?code=... bliver automatisk til route.params.code på RegisterScreen.
+const linking = {
+  prefixes: [Linking.createURL('/'), 'ferieguide://'],
+  config: {
+    screens: {
+      Register: 'register',
+    },
+  },
+};
 
 export default function App() {
   // Den udlejer, der er logget ind på enheden (null = ingen er logget ind)
@@ -64,11 +80,25 @@ export default function App() {
     setPages([]);
     getHouse(houseId)
       .then((houseFromDb) => setHouse(houseFromDb))
-      .catch((error) => console.log('Firestore-fejl:', error.message));
+      .catch((error) => {
+        // Huset er slettet, eller det tilhører ikke denne udlejer (reglerne afviser det).
+        // Så glemmer enheden valget, og udlejeren sendes til "Vælg hus".
+        console.log('Kunne ikke hente huset:', error.message);
+        AsyncStorage.removeItem('selectedHouse_' + auth.currentUser.uid);
+        setHouseId(null);
+      });
     getPages(houseId)
       .then((pagesFromDb) => setPages(pagesFromDb))
       .catch((error) => console.log('Firestore-fejl:', error.message));
   }, [houseId]);
+
+  // Kun under udvikling: skriv et eksempel på et invitationslink i terminalen,
+  // så det kan sendes til telefonen og testes. __DEV__ er false i en færdig app.
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('Invitationslink:', Linking.createURL('register', { queryParams: { code: 'DINKODE' } }));
+    }
+  }, []);
 
   // Vælg hus på denne enhed. Sendes som prop til HousesScreen.
   function selectHouse(id) {
@@ -86,7 +116,7 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator
         screenOptions={{
           headerStyle: GlobalStyle.header,
