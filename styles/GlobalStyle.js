@@ -13,10 +13,7 @@ const COLORS = {
   overlay: "rgba(43, 38, 34, 0.45)",
 };
 
-export const GlobalStyle = StyleSheet.create({
-  // Farver kan læses fra JS (fx til Ionicons) via GlobalStyle.colors
-  colors: COLORS,
-
+const styles = StyleSheet.create({
   // Fælles container
   container: {
     flex: 1,
@@ -332,8 +329,6 @@ export const GlobalStyle = StyleSheet.create({
 
   // ButtonComponent
   primaryBtn: {
-    pressedColor: COLORS.accentPressed,
-    defaultColor: COLORS.accent,
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
@@ -351,8 +346,6 @@ export const GlobalStyle = StyleSheet.create({
     textAlign: "center",
   },
   secondaryBtn: {
-    pressedColor: COLORS.accentSoft,
-    defaultColor: COLORS.surface,
     borderRadius: 14,
     borderWidth: 2,
     borderColor: COLORS.accent,
@@ -463,3 +456,9 @@ export const GlobalStyle = StyleSheet.create({
     backgroundColor: COLORS.accent,
   },
 });
+
+// Farver kan læses fra JS (fx til Ionicons) via GlobalStyle.colors.
+export const GlobalStyle = {
+  ...styles,
+  colors: COLORS,
+};
