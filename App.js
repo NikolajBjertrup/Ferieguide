@@ -8,6 +8,7 @@ import PageScreen from './screens/PageScreen';
 import OwnerLoginScreen from './screens/OwnerLoginScreen';
 import OwnerPagesScreen from './screens/OwnerPagesScreen';
 import EditPageScreen from './screens/EditPageScreen';
+import QuickSetupScreen from './screens/QuickSetupScreen';
 
 import { PAGES } from './data/const';
 import { GlobalStyle } from './styles/GlobalStyle';
@@ -48,6 +49,9 @@ export default function App() {
         </Stack.Screen>
         <Stack.Screen name="EditPage" options={{ title: 'Rediger side' }}>
           {(props) => <EditPageScreen {...props} pages={pages} setPages={setPages} />}
+        </Stack.Screen>
+        <Stack.Screen name="QuickSetup" options={{ title: 'Lynopsætning' }}>
+          {(props) => <QuickSetupScreen {...props} pages={pages} setPages={setPages} />}
         </Stack.Screen>
       </Stack.Navigator>
     </NavigationContainer>

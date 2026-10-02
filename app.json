@@ -28,7 +28,13 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "FerieGuide bruger mikrofonen, når du indtaler indholdet til din husguide."
+        }
+      ]
     ]
   }
 }

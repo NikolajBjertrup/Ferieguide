@@ -25,7 +25,8 @@ export default function OwnerPagesScreen({ navigation, pages, setPages }) {
         contentContainerStyle={GlobalStyle.ownerList}
         ListHeaderComponent={
           <Text style={GlobalStyle.ownerListHint}>
-            Slå sider til eller fra med kontakten. Tryk på en side for at redigere tekst.
+            Slå sider til eller fra med kontakten. Tryk på en side for at redigere tekst,
+            eller tryk på mikrofonen for at indtale indholdet.
           </Text>
         }
         renderItem={({ item }) => (
@@ -40,6 +41,16 @@ export default function OwnerPagesScreen({ navigation, pages, setPages }) {
                 {item.active ? 'Vises for gæsten' : 'Skjult'}
               </Text>
             </View>
+            {/* Genvej til lynopsætning: indtal siden i stedet for at skrive den */}
+            <Pressable
+              style={({ pressed }) => [
+                GlobalStyle.ownerRowMic,
+                pressed && GlobalStyle.ownerRowMicPressed,
+              ]}
+              onPress={() => navigation.navigate('QuickSetup', { pageId: item.id })}
+            >
+              <Ionicons name="mic" size={24} color={GlobalStyle.colors.accent} />
+            </Pressable>
             <Switch
               value={item.active}
               onValueChange={() => toggleActive(item.id)}

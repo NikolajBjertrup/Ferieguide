@@ -394,4 +394,72 @@ export const GlobalStyle = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 20,
   },
+
+  // QuickSetupScreen
+  quickRecordArea: {
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  quickHint: {
+    fontSize: 17,
+    lineHeight: 26,
+    color: COLORS.textMuted,
+    marginBottom: 24,
+  },
+  quickMicButton: {
+    width: 132,
+    height: 132,
+    borderRadius: 66,
+    backgroundColor: COLORS.accent,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  quickMicButtonActive: {
+    backgroundColor: "#B23A3A",
+  },
+  quickMicButtonPressed: {
+    backgroundColor: COLORS.accentPressed,
+  },
+  quickStatusText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: COLORS.text,
+    marginTop: 20,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  quickSpokenLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.textMuted,
+    marginBottom: 6,
+  },
+  quickSpokenText: {
+    fontSize: 15,
+    lineHeight: 23,
+    fontStyle: "italic",
+    color: COLORS.textMuted,
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+  },
+
+  // Mikrofon-genvej i udlejerens sideliste
+  ownerRowMic: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ownerRowMicPressed: {
+    backgroundColor: COLORS.accent,
+  },
 });
