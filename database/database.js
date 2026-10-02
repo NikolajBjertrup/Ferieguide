@@ -11,6 +11,7 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { PAGES } from '../data/const';
 
 // Indsæt dit eget firebaseConfig fra Firebase Console her
@@ -31,6 +32,9 @@ const app = initializeApp(firebaseConfig);
 
 // Firestore-databasen, som resten af appen importerer
 const db = getFirestore(app);
+
+// Firebase Storage, hvor billederne ligger. Firestore gemmer kun linket til dem.
+const storage = getStorage(app);
 
 // Lægger startsiderne fra const.js op i Firestore-collectionen "pages".
 // Kører kun, hvis collectionen er tom, så vi ikke overskriver udlejerens ændringer.
@@ -91,4 +95,19 @@ function newBlockId() {
   return Date.now() + '-' + Math.floor(Math.random() * 10000);
 }
 
-export { db, uploadStartPages, getPages, updatePage, newBlockId };
+// Uploader et billede fra telefonen til Firebase Storage og giver linket tilbage.
+// `localUri` er stien til billedet på telefonen (fra kameraet).
+async function uploadImage(pageId, localUri) {
+  // Hent billedfilen som en "blob" (rå data), som Firebase kan uploade
+  const response = await fetch(localUri);
+  const blob = await response.blob();
+
+  // Billedet lægges i en mappe pr. side, fx pages/koekken/1727862000000.jpg
+  const imageRef = ref(storage, 'pages/' + pageId + '/' + Date.now() + '.jpg');
+  await uploadBytes(imageRef, blob);
+
+  // Linket kan vises direkte i et <Image>, og det er det, vi gemmer i billedblokken
+  return await getDownloadURL(imageRef);
+}
+
+export { db, uploadStartPages, getPages, updatePage, newBlockId, uploadImage };

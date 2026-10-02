@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Text, View, ScrollView, Pressable, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +18,16 @@ export default function EditPageScreen({ navigation, route, pages, setPages }) {
   // state, når brugeren trykker "Gem". Annuller efterlader alt uændret.
   const [title, setTitle] = useState(page.title);
   const [blocks, setBlocks] = useState(page.blocks);
+
+  // Når CameraScreen har uploadet et billede, kommer vi tilbage hertil med
+  // linket i route.params.newImageUrl. Så lægger vi det nederst som en billedblok.
+  // Effekten kører hver gang newImageUrl ændrer sig, altså én gang pr. nyt billede.
+  const newImageUrl = route.params.newImageUrl;
+  useEffect(() => {
+    if (newImageUrl) {
+      setBlocks((current) => [...current, { id: newBlockId(), type: 'image', url: newImageUrl }]);
+    }
+  }, [newImageUrl]);
 
   // Tilføjer en tom tekstblok nederst
   function addTextBlock() {
@@ -129,6 +139,13 @@ export default function EditPageScreen({ navigation, route, pages, setPages }) {
 
           <View style={GlobalStyle.blockAddRow}>
             <ButtonComponent title="+ Tekst" type="secondary" width={160} height={56} onPress={addTextBlock} />
+            <ButtonComponent
+              title="+ Billede"
+              type="secondary"
+              width={160}
+              height={56}
+              onPress={() => navigation.navigate('Camera', { pageId: pageId })}
+            />
           </View>
 
           <View style={GlobalStyle.editButtons}>

@@ -34,6 +34,13 @@
         {
           "microphonePermission": "FerieGuide bruger mikrofonen, når du indtaler indholdet til din husguide."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "FerieGuide bruger kameraet, når du tager billeder til din husguide.",
+          "recordAudioAndroid": false
+        }
       ]
     ]
   }

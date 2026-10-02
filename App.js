@@ -9,6 +9,7 @@ import OwnerLoginScreen from './screens/OwnerLoginScreen';
 import OwnerPagesScreen from './screens/OwnerPagesScreen';
 import EditPageScreen from './screens/EditPageScreen';
 import QuickSetupScreen from './screens/QuickSetupScreen';
+import CameraScreen from './screens/CameraScreen';
 
 import { PAGES } from './data/const';
 import { GlobalStyle } from './styles/GlobalStyle';
@@ -70,6 +71,8 @@ export default function App() {
         <Stack.Screen name="QuickSetup" options={{ title: 'Lynopsætning' }}>
           {(props) => <QuickSetupScreen {...props} pages={pages} setPages={setPages} />}
         </Stack.Screen>
+        {/* Kameraet har ikke brug for pages – det sender bare billedlinket tilbage til EditPage */}
+        <Stack.Screen name="Camera" component={CameraScreen} options={{ title: 'Tag billede' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

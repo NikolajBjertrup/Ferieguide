@@ -290,6 +290,56 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 24,
   },
+  // CameraScreen
+  cameraContainer: {
+    flex: 1,
+    backgroundColor: "#000000",
+  },
+  cameraView: {
+    flex: 1,
+  },
+  cameraPreview: {
+    flex: 1,
+  },
+  cameraBottomBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingVertical: 32,
+    alignItems: "center",
+    backgroundColor: COLORS.overlay,
+  },
+  cameraShutter: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: COLORS.surface,
+    borderWidth: 6,
+    borderColor: COLORS.accentSoft,
+  },
+  cameraShutterPressed: {
+    backgroundColor: COLORS.accentSoft,
+  },
+  cameraButtons: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  cameraUploading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    height: 60,
+  },
+  cameraUploadingText: {
+    fontSize: 20,
+    color: COLORS.surface,
+  },
+  cameraError: {
+    marginTop: 12,
+    fontSize: 16,
+    color: COLORS.surface,
+  },
   editButtons: {
     flexDirection: "row",
     justifyContent: "flex-end",
