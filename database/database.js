@@ -49,7 +49,7 @@ async function uploadStartPages() {
       title: page.title,
       icon: page.icon,
       active: page.active,
-      body: page.body,
+      blocks: page.blocks,
       order: i,
     });
   }
@@ -61,10 +61,19 @@ async function getPages() {
   const snapshot = await getDocs(query(collection(db, 'pages'), orderBy('order')));
 
   return snapshot.docs.map((document) => {
+    const data = document.data();
     const localPage = PAGES.find((p) => p.id === document.id);
+
+    // Ældre sider i databasen har kun en `body`-tekst og ingen blokke.
+    // Dem laver vi om til én tekstblok, så resten af appen kun skal kende blokke.
+    const blocks = data.blocks ? data.blocks : [{ id: 'tekst-1', type: 'text', text: data.body || '' }];
+
     return {
       id: document.id,
-      ...document.data(),
+      title: data.title,
+      icon: data.icon,
+      active: data.active,
+      blocks: blocks,
       image: localPage ? localPage.image : null,
     };
   });
@@ -76,4 +85,10 @@ async function updatePage(pageId, changes) {
   await updateDoc(doc(db, 'pages', pageId), changes);
 }
 
-export { db, uploadStartPages, getPages, updatePage };
+// Laver et unikt id til en ny blok, fx "1727862000000-4821".
+// Bruges som key, når blokkene vises, og til at finde den rigtige blok igen.
+function newBlockId() {
+  return Date.now() + '-' + Math.floor(Math.random() * 10000);
+}
+
+export { db, uploadStartPages, getPages, updatePage, newBlockId };

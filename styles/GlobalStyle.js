@@ -126,6 +126,14 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 32,
   },
+  pageBlockImage: {
+    width: "100%",
+    maxWidth: 900,
+    height: 420,
+    borderRadius: 20,
+    marginBottom: 32,
+    backgroundColor: COLORS.accentSoft,
+  },
   pageBackButton: {
     alignItems: "center",
   },
@@ -235,6 +243,52 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
     color: COLORS.text,
+  },
+  // Blokke på EditPageScreen
+  blockEmpty: {
+    fontSize: 16,
+    color: COLORS.textMuted,
+    marginBottom: 16,
+  },
+  blockRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.background,
+  },
+  blockContent: {
+    flex: 1,
+  },
+  blockImage: {
+    width: "100%",
+    height: 220,
+    borderRadius: 12,
+  },
+  blockControls: {
+    gap: 6,
+  },
+  blockIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  blockIconButtonPressed: {
+    backgroundColor: COLORS.accentSoft,
+  },
+  blockAddRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 24,
   },
   editButtons: {
     flexDirection: "row",

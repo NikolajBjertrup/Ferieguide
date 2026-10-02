@@ -14,7 +14,7 @@ import ButtonComponent from '../components/ButtonComponent';
 import TextInputComponent from '../components/TextInputComponent';
 import { TranscribeAudio, RewriteToGuideText } from '../services/Request';
 import { GlobalStyle } from '../styles/GlobalStyle';
-import { updatePage } from '../database/database';
+import { updatePage, newBlockId } from '../database/database';
 
 // Gør millisekunder til fx "0:07"
 function formatTid(millis) {
@@ -87,9 +87,19 @@ export default function QuickSetupScreen({ navigation, route, pages, setPages })
 
   // Gem forslaget som sidens brødtekst og gå tilbage til listen
   function gem() {
-    setPages(pages.map((p) => (p.id === pageId ? { ...p, body: suggestion } : p)));
+    // Forslaget erstatter sidens første tekstblok. Har siden ingen tekstblok,
+    // lægger vi en ny øverst. Billedblokke bliver ikke rørt.
+    const firstTextIndex = page.blocks.findIndex((b) => b.type === 'text');
+    let newBlocks;
+    if (firstTextIndex === -1) {
+      newBlocks = [{ id: newBlockId(), type: 'text', text: suggestion }, ...page.blocks];
+    } else {
+      newBlocks = page.blocks.map((b, i) => (i === firstTextIndex ? { ...b, text: suggestion } : b));
+    }
+
+    setPages(pages.map((p) => (p.id === pageId ? { ...p, blocks: newBlocks } : p)));
     // Gem også i Firestore
-    updatePage(pageId, { body: suggestion }).catch((error) =>
+    updatePage(pageId, { blocks: newBlocks }).catch((error) =>
       console.log('Kunne ikke gemme i Firestore:', error.message)
     );
     navigation.goBack();

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ButtonComponent from '../components/ButtonComponent';
 import { GlobalStyle } from '../styles/GlobalStyle';
 
-// Gæst: viser én side med titel, billede og brødtekst.
+// Gæst: viser én side med topbillede, titel og sidens blokke (tekst og billeder).
 // `route.params.pageId` kommer fra navigation.navigate('Page', { pageId }) i GuideScreen.
 export default function PageScreen({ navigation, route, pages }) {
   const { pageId } = route.params;
@@ -23,7 +23,22 @@ export default function PageScreen({ navigation, route, pages }) {
           <Text style={GlobalStyle.pageTitle}>{page.title}</Text>
         </View>
 
-        <Text style={GlobalStyle.pageBody}>{page.body}</Text>
+        {/* Sidens blokke vises i rækkefølge: tekst som tekst, billeder som billeder.
+            Vi bruger map() og ikke FlatList, fordi vi allerede er inde i en ScrollView. */}
+        {page.blocks.map((block) =>
+          block.type === 'text' ? (
+            <Text key={block.id} style={GlobalStyle.pageBody}>
+              {block.text}
+            </Text>
+          ) : (
+            <Image
+              key={block.id}
+              source={{ uri: block.url }}
+              style={GlobalStyle.pageBlockImage}
+              resizeMode="cover"
+            />
+          )
+        )}
 
         <View style={GlobalStyle.pageBackButton}>
           <ButtonComponent
