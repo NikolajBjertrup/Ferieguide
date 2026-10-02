@@ -10,9 +10,6 @@ export const HOUSE = {
   cover: require("../assets/hus.png"),
 };
 
-// Hardcodet PIN til udlejertilstand
-export const OWNER_PIN = "1234";
-
 // De prædefinerede sider i guiden.
 // `active` styrer om gæsten ser siden. Udlejeren kan slå den til/fra.
 // `icon` er et Ionicons-navn. `id` er unik og bruges som key i FlatList.

@@ -102,6 +102,17 @@ async function getHouses() {
   return houses.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// Henter ét hus (navn, velkomsttekst, wifi osv.)
+async function getHouse(houseId) {
+  const snapshot = await getDoc(doc(db, 'houses', houseId));
+  return { id: snapshot.id, ...snapshot.data() };
+}
+
+// Gemmer ændringer i husets info, fx updateHouse(houseId, { wifiPassword: 'ny-kode' })
+async function updateHouse(houseId, changes) {
+  await updateDoc(doc(db, 'houses', houseId), changes);
+}
+
 // ---------- Sider ----------
 
 // Henter alle sider i ét hus i den rigtige rækkefølge.
@@ -196,6 +207,8 @@ function authErrorMessage(error) {
     case 'auth/wrong-password':
     case 'auth/user-not-found':
       return 'Forkert email eller kodeord.';
+    case 'auth/too-many-requests':
+      return 'For mange forsøg. Vent lidt, og prøv igen.';
     case 'auth/network-request-failed':
       return 'Ingen forbindelse til internettet.';
     default:
@@ -208,6 +221,8 @@ export {
   db,
   createHouse,
   getHouses,
+  getHouse,
+  updateHouse,
   getPages,
   updatePage,
   newBlockId,

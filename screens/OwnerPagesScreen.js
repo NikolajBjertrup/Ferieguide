@@ -32,10 +32,25 @@ export default function OwnerPagesScreen({ navigation, houseId, pages, setPages 
         keyExtractor={(item) => item.id}
         contentContainerStyle={GlobalStyle.ownerList}
         ListHeaderComponent={
-          <Text style={GlobalStyle.ownerListHint}>
-            Slå sider til eller fra med kontakten. Tryk på en side for at redigere tekst,
-            eller tryk på mikrofonen for at indtale indholdet.
-          </Text>
+          <View>
+            {/* Husinfo: navn, velkomst, wifi, udtjekning og kontakt på forsiden */}
+            <Pressable
+              style={({ pressed }) => [GlobalStyle.ownerRow, pressed && GlobalStyle.ownerRowPressed]}
+              onPress={() => navigation.navigate('EditHouse')}
+            >
+              <Ionicons name="home-outline" size={28} color={GlobalStyle.colors.accent} />
+              <View style={GlobalStyle.ownerRowText}>
+                <Text style={GlobalStyle.ownerRowTitle}>Husinfo</Text>
+                <Text style={GlobalStyle.ownerRowStatus}>Navn, velkomst, wifi, udtjekning og kontakt</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color={GlobalStyle.colors.textMuted} />
+            </Pressable>
+
+            <Text style={GlobalStyle.ownerListHint}>
+              Slå sider til eller fra med kontakten. Tryk på en side for at redigere tekst,
+              eller tryk på mikrofonen for at indtale indholdet.
+            </Text>
+          </View>
         }
         ListFooterComponent={
           // Log ud: App.js opdager det via onAuthStateChanged og viser login-skærmen igen

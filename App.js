@@ -16,9 +16,10 @@ import CameraScreen from './screens/CameraScreen';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import HousesScreen from './screens/HousesScreen';
+import EditHouseScreen from './screens/EditHouseScreen';
 
 import { GlobalStyle } from './styles/GlobalStyle';
-import { auth, getPages } from './database/database';
+import { auth, getHouse, getPages } from './database/database';
 
 const Stack = createNativeStackNavigator();
 
@@ -32,6 +33,8 @@ export default function App() {
   // Global state: alle sider i det valgte hus. Når udlejeren redigerer,
   // opdaterer vi denne state, og alle skærme ser ændringen.
   const [pages, setPages] = useState([]);
+  // Husets info (navn, velkomsttekst, wifi ...), som vises på forsiden
+  const [house, setHouse] = useState(null);
 
   // onAuthStateChanged kalder vores funktion, hver gang nogen logger ind eller ud
   // (og én gang ved start). Funktionen den returnerer, stopper lytningen igen.
@@ -50,13 +53,18 @@ export default function App() {
     return unsubscribe;
   }, []);
 
-  // Henter husets sider, hver gang enheden skifter hus.
+  // Henter husets info og sider, hver gang enheden skifter hus.
   // [houseId] betyder: kør igen, når houseId ændrer sig.
   useEffect(() => {
     if (!houseId) {
       return;
     }
-    setPages([]); // Ryd det gamle hus' sider, mens de nye hentes
+    // Ryd det gamle hus, mens det nye hentes
+    setHouse(null);
+    setPages([]);
+    getHouse(houseId)
+      .then((houseFromDb) => setHouse(houseFromDb))
+      .catch((error) => console.log('Firestore-fejl:', error.message));
     getPages(houseId)
       .then((pagesFromDb) => setPages(pagesFromDb))
       .catch((error) => console.log('Firestore-fejl:', error.message));
@@ -102,7 +110,9 @@ export default function App() {
           </Stack.Screen>
         ) : (
           <>
-            <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Home" options={{ headerShown: false }}>
+              {(props) => <HomeScreen {...props} house={house} />}
+            </Stack.Screen>
 
             {/* Render-funktion i stedet for component={...}, så vi kan sende pages/setPages med som props */}
             <Stack.Screen name="Guide" options={{ title: 'Guiden' }}>
@@ -114,6 +124,9 @@ export default function App() {
               {(props) => <PageScreen {...props} pages={pages} />}
             </Stack.Screen>
             <Stack.Screen name="OwnerLogin" component={OwnerLoginScreen} options={{ title: 'Udlejer-login' }} />
+            <Stack.Screen name="EditHouse" options={{ title: 'Husinfo' }}>
+              {(props) => <EditHouseScreen {...props} house={house} setHouse={setHouse} />}
+            </Stack.Screen>
             <Stack.Screen name="OwnerPages" options={{ title: 'Rediger guiden' }}>
               {(props) => <OwnerPagesScreen {...props} houseId={houseId} pages={pages} setPages={setPages} />}
             </Stack.Screen>

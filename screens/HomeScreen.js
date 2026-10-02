@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { Text, View, ImageBackground, Pressable } from 'react-native';
+import { Text, View, ImageBackground, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -9,7 +9,17 @@ import { GlobalStyle } from '../styles/GlobalStyle';
 
 // Gæst: forsiden med coverbillede, husnavn og velkomsttekst.
 // `navigation` får vi automatisk som prop, fordi skærmen ligger i en Stack.Screen.
-export default function HomeScreen({ navigation }) {
+// `house` kommer fra App.js og er hentet fra Firestore. Coverbilledet ligger lokalt.
+export default function HomeScreen({ navigation, house }) {
+  // Huset er ikke hentet endnu
+  if (house === null) {
+    return (
+      <View style={GlobalStyle.authLoading}>
+        <ActivityIndicator size="large" color={GlobalStyle.colors.accent} />
+      </View>
+    );
+  }
+
   return (
     <ImageBackground source={HOUSE.cover} style={GlobalStyle.homeBackground} resizeMode="cover">
       <SafeAreaView style={GlobalStyle.homeOverlay}>
@@ -26,21 +36,27 @@ export default function HomeScreen({ navigation }) {
 
         <View style={GlobalStyle.homeCenter}>
           <View style={GlobalStyle.homeCard}>
-            <Text style={GlobalStyle.homeTitle}>{HOUSE.name}</Text>
-            <Text style={GlobalStyle.homeWelcome}>{HOUSE.welcome}</Text>
+            <Text style={GlobalStyle.homeTitle}>{house.name}</Text>
+            <Text style={GlobalStyle.homeWelcome}>{house.welcome}</Text>
 
-            {/* Det gæster oftest leder efter: wifi og udtjekning */}
+            {/* Det gæster oftest leder efter: wifi, udtjekning og kontakt */}
             <View style={GlobalStyle.homeInfoRow}>
               <View style={GlobalStyle.homeInfoItem}>
                 <Ionicons name="wifi-outline" size={22} color={GlobalStyle.colors.accent} />
                 <Text style={GlobalStyle.homeInfoLabel}>Wifi</Text>
-                <Text style={GlobalStyle.homeInfoValue}>Navn: {HOUSE.wifiName}</Text>
-                <Text style={GlobalStyle.homeInfoValue}>Kode: {HOUSE.wifiPassword}</Text>
+                <Text style={GlobalStyle.homeInfoValue}>Navn: {house.wifiName}</Text>
+                <Text style={GlobalStyle.homeInfoValue}>Kode: {house.wifiPassword}</Text>
               </View>
               <View style={GlobalStyle.homeInfoItem}>
                 <Ionicons name="time-outline" size={22} color={GlobalStyle.colors.accent} />
                 <Text style={GlobalStyle.homeInfoLabel}>Udtjekning</Text>
-                <Text style={GlobalStyle.homeInfoValue}>{HOUSE.checkout}</Text>
+                <Text style={GlobalStyle.homeInfoValue}>{house.checkout}</Text>
+              </View>
+              <View style={GlobalStyle.homeInfoItem}>
+                <Ionicons name="call-outline" size={22} color={GlobalStyle.colors.accent} />
+                <Text style={GlobalStyle.homeInfoLabel}>Kontakt</Text>
+                <Text style={GlobalStyle.homeInfoValue}>{house.ownerName}</Text>
+                <Text style={GlobalStyle.homeInfoValue}>{house.ownerPhone}</Text>
               </View>
             </View>
 

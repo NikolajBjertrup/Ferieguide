@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   },
   homeCard: {
     width: "100%",
-    maxWidth: 560,
+    maxWidth: 680,
     backgroundColor: COLORS.surface,
     borderRadius: 24,
     padding: 32,
