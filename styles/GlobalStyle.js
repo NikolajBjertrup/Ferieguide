@@ -146,6 +146,30 @@ const styles = StyleSheet.create({
     paddingTop: 48,
     paddingHorizontal: 24,
   },
+  // LoginScreen og RegisterScreen
+  authScroll: {
+    flexGrow: 1,
+    backgroundColor: COLORS.background,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  authDivider: {
+    width: "100%",
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 24,
+  },
+  authLoading: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ownerLogoutRow: {
+    alignItems: "center",
+    paddingVertical: 24,
+  },
   ownerCard: {
     width: "100%",
     maxWidth: 480,

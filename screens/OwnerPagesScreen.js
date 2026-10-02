@@ -1,9 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
 import { Text, View, FlatList, Pressable, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { signOut } from 'firebase/auth';
 
+import ButtonComponent from '../components/ButtonComponent';
 import { GlobalStyle } from '../styles/GlobalStyle';
-import { updatePage } from '../database/database';
+import { auth, updatePage } from '../database/database';
 
 // Udlejer: liste over ALLE sider. Switch slår siden til/fra for gæsten,
 // tryk på rækken åbner redigering.
@@ -34,6 +36,12 @@ export default function OwnerPagesScreen({ navigation, pages, setPages }) {
             Slå sider til eller fra med kontakten. Tryk på en side for at redigere tekst,
             eller tryk på mikrofonen for at indtale indholdet.
           </Text>
+        }
+        ListFooterComponent={
+          // Log ud: App.js opdager det via onAuthStateChanged og viser login-skærmen igen
+          <View style={GlobalStyle.ownerLogoutRow}>
+            <ButtonComponent title="Log ud" type="secondary" width={200} height={56} onPress={() => signOut(auth)} />
+          </View>
         }
         renderItem={({ item }) => (
           <Pressable

@@ -1,15 +1,24 @@
-// Opsætning af Firebase. Filen bygger på kursets guide (06_FirebaseLogin),
-// men bruger Firestore (databasen) i stedet for Authentication (login).
+// Opsætning af Firebase. Filen bygger på kursets guide (06_FirebaseLogin):
+// Authentication (login), Firestore (databasen) og Storage (billeder).
 import { initializeApp } from 'firebase/app';
+import {
+  initializeAuth,
+  getReactNativePersistence,
+  createUserWithEmailAndPassword,
+} from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getFirestore,
   collection,
   getDocs,
+  getDoc,
   doc,
   setDoc,
   updateDoc,
   query,
   orderBy,
+  writeBatch,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { PAGES } from '../data/const';
@@ -29,6 +38,12 @@ const firebaseConfig = {
 
 // Start forbindelsen til vores Firebase-projekt
 const app = initializeApp(firebaseConfig);
+
+// Login. Som i kursets guide gemmes login i AsyncStorage, så udlejeren
+// forbliver logget ind på iPad'en, selvom appen lukkes.
+const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage),
+});
 
 // Firestore-databasen, som resten af appen importerer
 const db = getFirestore(app);
@@ -110,4 +125,65 @@ async function uploadImage(pageId, localUri) {
   return await getDownloadURL(imageRef);
 }
 
-export { db, uploadStartPages, getPages, updatePage, newBlockId, uploadImage };
+// ---------- Brugere og invitationskoder ----------
+
+// Opretter en ny udlejer. Det kræver en gyldig invitationskode, som man får,
+// når man køber abonnement. Koderne ligger i collectionen "invites", fx
+// invites/SOMMER2026 = { used: false }.
+async function registerUser(inviteCode, email, password) {
+  const code = inviteCode.trim().toUpperCase();
+
+  // 1) Tjek koden, før vi opretter noget
+  const inviteRef = doc(db, 'invites', code);
+  const invite = await getDoc(inviteRef);
+  if (!invite.exists() || invite.data().used) {
+    throw new Error('Invitationskoden er ugyldig eller allerede brugt.');
+  }
+
+  // 2) Opret login i Firebase Authentication. Brugeren er derefter logget ind.
+  const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+  const uid = credential.user.uid;
+
+  // 3) Markér koden som brugt og opret brugerens dokument.
+  // En batch skriver begge dele på én gang – enten lykkes begge, eller ingen af dem.
+  const batch = writeBatch(db);
+  batch.update(inviteRef, { used: true, usedBy: uid });
+  batch.set(doc(db, 'users', uid), {
+    email: email.trim(),
+    inviteCode: code,
+    createdAt: serverTimestamp(),
+  });
+  await batch.commit();
+}
+
+// Oversætter Firebases fejlkoder til dansk, så de kan vises til brugeren
+function authErrorMessage(error) {
+  switch (error.code) {
+    case 'auth/invalid-email':
+      return 'Email-adressen er ikke gyldig.';
+    case 'auth/email-already-in-use':
+      return 'Der findes allerede en bruger med den email.';
+    case 'auth/weak-password':
+      return 'Kodeordet skal være mindst 6 tegn.';
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':
+      return 'Forkert email eller kodeord.';
+    case 'auth/network-request-failed':
+      return 'Ingen forbindelse til internettet.';
+    default:
+      return error.message;
+  }
+}
+
+export {
+  auth,
+  db,
+  uploadStartPages,
+  getPages,
+  updatePage,
+  newBlockId,
+  uploadImage,
+  registerUser,
+  authErrorMessage,
+};

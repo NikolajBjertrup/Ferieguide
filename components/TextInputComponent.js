@@ -13,6 +13,7 @@ export default function TextInputComponent({
   keyboardType,
   maxLength,
   multiline,
+  autoCapitalize,
 }) {
   return (
     <View style={GlobalStyle.inputContainer}>
@@ -27,6 +28,7 @@ export default function TextInputComponent({
         keyboardType={keyboardType}
         maxLength={maxLength}
         multiline={multiline}
+        autoCapitalize={autoCapitalize} // fx "none" til email, så første bogstav ikke bliver stort
       />
     </View>
   );
