@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
@@ -12,6 +12,7 @@ import QuickSetupScreen from './screens/QuickSetupScreen';
 
 import { PAGES } from './data/const';
 import { GlobalStyle } from './styles/GlobalStyle';
+import { uploadStartPages } from './database/database';
 
 const Stack = createNativeStackNavigator();
 
@@ -19,6 +20,12 @@ export default function App() {
   // Global state: alle sider. PAGES fra const.js er kun startværdien.
   // Når udlejeren redigerer, opdaterer vi denne state, og alle skærme ser ændringen.
   const [pages, setPages] = useState(PAGES);
+
+  // Kører én gang, når appen starter (den tomme [] betyder "kun første gang").
+  // Lægger startsiderne op i Firestore, hvis databasen er tom.
+  useEffect(() => {
+    uploadStartPages().catch((error) => console.log('Firestore-fejl:', error.message));
+  }, []);
 
   return (
     <NavigationContainer>
