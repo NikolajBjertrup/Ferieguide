@@ -287,8 +287,20 @@ const styles = StyleSheet.create({
   },
   blockAddRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 12,
     marginBottom: 24,
+  },
+  blockUploading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: -12,
+    marginBottom: 24,
+  },
+  blockUploadingText: {
+    fontSize: 16,
+    color: COLORS.textMuted,
   },
   // CameraScreen
   cameraContainer: {

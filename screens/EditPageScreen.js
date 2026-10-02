@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Text, View, ScrollView, Pressable, Image } from 'react-native';
+import { Text, View, ScrollView, Pressable, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 import ButtonComponent from '../components/ButtonComponent';
 import TextInputComponent from '../components/TextInputComponent';
 import { GlobalStyle } from '../styles/GlobalStyle';
-import { updatePage, newBlockId } from '../database/database';
+import { updatePage, newBlockId, uploadImage } from '../database/database';
 
 // Udlejer: rediger titel og sidens blokke (tekst og billeder).
 // Blokkene kan tilføjes, flyttes op/ned og slettes.
@@ -18,6 +19,8 @@ export default function EditPageScreen({ navigation, route, pages, setPages }) {
   // state, når brugeren trykker "Gem". Annuller efterlader alt uændret.
   const [title, setTitle] = useState(page.title);
   const [blocks, setBlocks] = useState(page.blocks);
+  const [uploading, setUploading] = useState(false); // true mens et galleribillede uploades
+  const [error, setError] = useState('');
 
   // Når CameraScreen har uploadet et billede, kommer vi tilbage hertil med
   // linket i route.params.newImageUrl. Så lægger vi det nederst som en billedblok.
@@ -28,6 +31,30 @@ export default function EditPageScreen({ navigation, route, pages, setPages }) {
       setBlocks((current) => [...current, { id: newBlockId(), type: 'image', url: newImageUrl }]);
     }
   }, [newImageUrl]);
+
+  // Åbner telefonens galleri. Det valgte billede uploades til Storage
+  // og lægges nederst som en billedblok – ligesom et billede fra kameraet.
+  async function pickFromGallery() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], // kun billeder, ikke video
+      quality: 0.6, // samme kvalitet som kameraet, så filerne ikke bliver for store
+    });
+
+    // canceled er true, hvis brugeren lukker galleriet uden at vælge noget
+    if (result.canceled) {
+      return;
+    }
+
+    setUploading(true);
+    setError('');
+    try {
+      const url = await uploadImage(pageId, result.assets[0].uri);
+      setBlocks((current) => [...current, { id: newBlockId(), type: 'image', url: url }]);
+    } catch (e) {
+      setError('Upload mislykkedes: ' + e.message);
+    }
+    setUploading(false);
+  }
 
   // Tilføjer en tom tekstblok nederst
   function addTextBlock() {
@@ -60,6 +87,10 @@ export default function EditPageScreen({ navigation, route, pages, setPages }) {
   }
 
   function save() {
+    // Vent med at gemme, til billedet er uploadet – ellers kommer det ikke med
+    if (uploading) {
+      return;
+    }
     setPages(pages.map((p) => (p.id === pageId ? { ...p, title: title, blocks: blocks } : p)));
     // Gem også i Firestore, så ændringen er der næste gang appen åbnes
     updatePage(pageId, { title: title, blocks: blocks }).catch((error) =>
@@ -140,13 +171,22 @@ export default function EditPageScreen({ navigation, route, pages, setPages }) {
           <View style={GlobalStyle.blockAddRow}>
             <ButtonComponent title="+ Tekst" type="secondary" width={160} height={56} onPress={addTextBlock} />
             <ButtonComponent
-              title="+ Billede"
+              title="+ Kamera"
               type="secondary"
               width={160}
               height={56}
               onPress={() => navigation.navigate('Camera', { pageId: pageId })}
             />
+            <ButtonComponent title="+ Galleri" type="secondary" width={160} height={56} onPress={pickFromGallery} />
           </View>
+
+          {uploading && (
+            <View style={GlobalStyle.blockUploading}>
+              <ActivityIndicator color={GlobalStyle.colors.accent} />
+              <Text style={GlobalStyle.blockUploadingText}>Uploader billedet …</Text>
+            </View>
+          )}
+          {error !== '' && <Text style={GlobalStyle.ownerError}>{error}</Text>}
 
           <View style={GlobalStyle.editButtons}>
             <ButtonComponent

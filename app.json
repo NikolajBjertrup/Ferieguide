@@ -41,6 +41,12 @@
           "cameraPermission": "FerieGuide bruger kameraet, når du tager billeder til din husguide.",
           "recordAudioAndroid": false
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "FerieGuide bruger dine billeder, når du vælger billeder til din husguide."
+        }
       ]
     ]
   }
