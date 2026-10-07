@@ -14,7 +14,7 @@ https://youtube.com/shorts/8t2mC9-cTaE?feature=share
 ## Funktioner
 
 **Gæst**
-- Forside med husets navn, velkomsttekst, wifi, udtjekning og kontaktperson
+- Forside med husets navn, velkomsttekst, wifi og kontaktperson på udlejerens eget baggrundsbillede
 - Guide med de sider, udlejeren har slået til, vist som store kort
 - Hver side består af tekst og billeder i den rækkefølge, udlejeren har valgt
 
@@ -23,7 +23,7 @@ https://youtube.com/shorts/8t2mC9-cTaE?feature=share
   (koden kan komme i et link, der åbner appen med koden udfyldt)
 - Log ind på en vilkårlig enhed og vælg, hvilket af sine **huse** enheden skal vise
 - Lås udlejertilstand op med **kodeordet til kontoen** (tandhjulet på forsiden)
-- Ret husinfo (navn, velkomst, wifi, udtjekning, kontakt)
+- Ret husinfo (baggrundsbillede, navn, velkomst, wifi, kontakt)
 - Slå sider til/fra for gæsten
 - Opret **egne kategorier** med navn og ikon (fx cykler, pool, husdyr) og slet dem igen
 - Byg siderne af blokke: tekst, billeder fra **kameraet** eller **galleriet**,
@@ -76,7 +76,7 @@ Appen har ingen egen server. Den bruger **Firebase** direkte:
 ```
 invites/{KODE}                 { used, usedBy }
 users/{uid}                    { email, inviteCode, createdAt }
-houses/{houseId}               { ownerId, name, welcome, checkout, wifiName, ... }
+houses/{houseId}               { ownerId, name, welcome, wifiName, coverUrl, ... }
 houses/{houseId}/pages/{id}    { title, icon, active, order, blocks, custom }
 ```
 

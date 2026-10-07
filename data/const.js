@@ -2,7 +2,6 @@
 export const HOUSE = {
   name: "Sommerhus Klitvej 12",
   welcome: "Velkommen til Klitvej 12. Her finder du alt om huset og området.",
-  checkout: "Senest kl. 10.00",
   wifiName: "Klitvej12",
   wifiPassword: "sommer2026",
   ownerName: "Mette Hansen",

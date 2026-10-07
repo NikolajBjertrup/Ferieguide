@@ -6,13 +6,15 @@ import { useIsFocused } from '@react-navigation/native';
 
 import ButtonComponent from '../components/ButtonComponent';
 import { GlobalStyle } from '../styles/GlobalStyle';
-import { uploadImage } from '../database/database';
+import { uploadImage, uploadCoverImage } from '../database/database';
 
-// Udlejer: tag et billede til en side. Bygger på kursets kamera-guide (07_kamera).
-// Når billedet er uploadet, sendes linket tilbage til EditPageScreen,
-// som lægger det ind som en ny billedblok.
+// Udlejer: tag et billede. Bygger på kursets kamera-guide (07_kamera).
+// Kameraet bruges to steder, og `returnTo` fortæller hvilket:
+//   'EditPage'  → billedet bliver en ny billedblok på siden `pageId`
+//   'EditHouse' → billedet bliver nyt baggrundsbillede på forsiden
+// Når billedet er uploadet, sendes linket tilbage til den skærm.
 export default function CameraScreen({ navigation, route, houseId }) {
-  const { pageId } = route.params;
+  const { pageId, returnTo } = route.params;
 
   // Hook fra expo-camera: fortæller om vi har lov til at bruge kameraet
   const [permission, requestPermission] = useCameraPermissions();
@@ -39,10 +41,15 @@ export default function CameraScreen({ navigation, route, houseId }) {
   async function confirmPhoto() {
     setUploading(true);
     try {
-      const url = await uploadImage(houseId, pageId, photoUri);
-      // Gå tilbage til EditPage og send linket med som param.
-      // merge: true beholder de params, der allerede er der (pageId).
-      navigation.navigate({ name: 'EditPage', params: { newImageUrl: url }, merge: true });
+      let url;
+      if (returnTo === 'EditHouse') {
+        url = await uploadCoverImage(houseId, photoUri);
+      } else {
+        url = await uploadImage(houseId, pageId, photoUri);
+      }
+      // Gå tilbage og send linket med som param.
+      // merge: true beholder de params, der allerede er der (fx pageId).
+      navigation.navigate({ name: returnTo, params: { newImageUrl: url }, merge: true });
     } catch (e) {
       setError('Upload mislykkedes: ' + e.message);
       setUploading(false);

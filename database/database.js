@@ -69,7 +69,6 @@ async function createHouse(name) {
     ownerId: auth.currentUser.uid,
     name: name.trim(),
     welcome: HOUSE.welcome,
-    checkout: HOUSE.checkout,
     wifiName: HOUSE.wifiName,
     wifiPassword: HOUSE.wifiPassword,
     ownerName: HOUSE.ownerName,
@@ -172,21 +171,30 @@ function newBlockId() {
 }
 
 // Uploader et billede fra telefonen til Firebase Storage og giver linket tilbage.
-// `localUri` er stien til billedet på telefonen (fra kameraet eller galleriet).
-async function uploadImage(houseId, pageId, localUri) {
+// `localUri` er stien til billedet på telefonen (fra kameraet eller galleriet),
+// `path` er hvor det skal ligge i Storage.
+async function uploadFile(path, localUri) {
   // Hent billedfilen som en "blob" (rå data), som Firebase kan uploade
   const response = await fetch(localUri);
   const blob = await response.blob();
 
-  // Billedet lægges i en mappe pr. hus og side, fx houses/abc123/pages/koekken/1727862000000.jpg
-  const path = 'houses/' + houseId + '/pages/' + pageId + '/' + Date.now() + '.jpg';
   const imageRef = ref(storage, path);
   // contentType fortæller Storage, at det er et billede. Sikkerhedsreglerne
   // afviser filer, der ikke er billeder.
   await uploadBytes(imageRef, blob, { contentType: 'image/jpeg' });
 
-  // Linket kan vises direkte i et <Image>, og det er det, vi gemmer i billedblokken
+  // Linket kan vises direkte i et <Image>, og det er det, vi gemmer i databasen
   return await getDownloadURL(imageRef);
+}
+
+// Billede til en side, fx houses/abc123/pages/koekken/1727862000000.jpg
+async function uploadImage(houseId, pageId, localUri) {
+  return await uploadFile('houses/' + houseId + '/pages/' + pageId + '/' + Date.now() + '.jpg', localUri);
+}
+
+// Baggrundsbillede til forsiden, fx houses/abc123/cover/1727862000000.jpg
+async function uploadCoverImage(houseId, localUri) {
+  return await uploadFile('houses/' + houseId + '/cover/' + Date.now() + '.jpg', localUri);
 }
 
 // ---------- Brugere og invitationskoder ----------
@@ -255,6 +263,7 @@ export {
   updatePage,
   newBlockId,
   uploadImage,
+  uploadCoverImage,
   registerUser,
   authErrorMessage,
 };

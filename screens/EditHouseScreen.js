@@ -1,30 +1,68 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Text, View, ScrollView } from 'react-native';
+import { Text, View, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 import ButtonComponent from '../components/ButtonComponent';
 import TextInputComponent from '../components/TextInputComponent';
 import { GlobalStyle } from '../styles/GlobalStyle';
-import { updateHouse } from '../database/database';
+import { HOUSE } from '../data/const';
+import { updateHouse, uploadCoverImage } from '../database/database';
 
 // Udlejer: ret husets info, som gæsten ser på forsiden
-// (navn, velkomsttekst, wifi, udtjekning og kontakt).
-export default function EditHouseScreen({ navigation, house, setHouse }) {
+// (baggrundsbillede, navn, velkomsttekst, wifi og kontakt).
+export default function EditHouseScreen({ navigation, route, house, setHouse }) {
   // Kladde: som på EditPageScreen gemmes først, når der trykkes "Gem"
+  // coverUrl = link til eget baggrundsbillede i Storage (null = standardbilledet)
+  const [coverUrl, setCoverUrl] = useState(house.coverUrl || null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
   const [name, setName] = useState(house.name);
   const [welcome, setWelcome] = useState(house.welcome);
-  const [checkout, setCheckout] = useState(house.checkout);
   const [wifiName, setWifiName] = useState(house.wifiName);
   const [wifiPassword, setWifiPassword] = useState(house.wifiPassword);
   const [ownerName, setOwnerName] = useState(house.ownerName);
   const [ownerPhone, setOwnerPhone] = useState(house.ownerPhone);
 
+  // Når CameraScreen har uploadet et billede, kommer linket tilbage som
+  // route.params.newImageUrl – ligesom på EditPageScreen
+  const newImageUrl = route.params?.newImageUrl;
+  useEffect(() => {
+    if (newImageUrl) {
+      setCoverUrl(newImageUrl);
+    }
+  }, [newImageUrl]);
+
+  // Vælg baggrund fra galleriet og upload den til Storage
+  async function pickFromGallery() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.6,
+    });
+    if (result.canceled) {
+      return;
+    }
+    setUploading(true);
+    setError('');
+    try {
+      const url = await uploadCoverImage(house.id, result.assets[0].uri);
+      setCoverUrl(url);
+    } catch (e) {
+      setError('Upload mislykkedes: ' + e.message);
+    }
+    setUploading(false);
+  }
+
   function save() {
+    // Vent med at gemme, til billedet er uploadet
+    if (uploading) {
+      return;
+    }
     const changes = {
+      coverUrl: coverUrl,
       name: name,
       welcome: welcome,
-      checkout: checkout,
       wifiName: wifiName,
       wifiPassword: wifiPassword,
       ownerName: ownerName,
@@ -52,6 +90,35 @@ export default function EditHouseScreen({ navigation, house, setHouse }) {
             <Text style={GlobalStyle.editHeaderText}>Husinfo</Text>
           </View>
 
+          {/* Baggrundsbillede på forsiden: eget billede eller appens standardbillede */}
+          <Text style={GlobalStyle.inpLabel}>Baggrund på forsiden</Text>
+          <Image
+            source={coverUrl ? { uri: coverUrl } : HOUSE.cover}
+            style={GlobalStyle.coverPreview}
+            resizeMode="cover"
+          />
+          <View style={GlobalStyle.blockAddRow}>
+            <ButtonComponent
+              title="Kamera"
+              type="secondary"
+              width={140}
+              height={56}
+              onPress={() => navigation.navigate('Camera', { returnTo: 'EditHouse' })}
+            />
+            <ButtonComponent title="Galleri" type="secondary" width={140} height={56} onPress={pickFromGallery} />
+            {/* "Standard" vises kun, når der er valgt et eget billede */}
+            {coverUrl && (
+              <ButtonComponent title="Standard" type="secondary" width={140} height={56} onPress={() => setCoverUrl(null)} />
+            )}
+          </View>
+          {uploading && (
+            <View style={GlobalStyle.blockUploading}>
+              <ActivityIndicator color={GlobalStyle.colors.accent} />
+              <Text style={GlobalStyle.blockUploadingText}>Uploader billedet …</Text>
+            </View>
+          )}
+          {error !== '' && <Text style={GlobalStyle.ownerError}>{error}</Text>}
+
           <TextInputComponent label="Husets navn" hint="Fx Sommerhus Klitvej 12" value={name} onChangeText={setName} />
           <TextInputComponent
             label="Velkomsttekst"
@@ -60,7 +127,6 @@ export default function EditHouseScreen({ navigation, house, setHouse }) {
             onChangeText={setWelcome}
             multiline={true}
           />
-          <TextInputComponent label="Udtjekning" hint="Fx Senest kl. 10.00" value={checkout} onChangeText={setCheckout} />
           <TextInputComponent
             label="Wifi-navn"
             hint="Netværkets navn"

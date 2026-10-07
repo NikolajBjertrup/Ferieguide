@@ -300,6 +300,14 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
 
+  // Baggrundsbillede på EditHouseScreen (samme format som iPad'en i landscape)
+  coverPreview: {
+    width: "100%",
+    aspectRatio: 4 / 3,
+    borderRadius: 14,
+    marginBottom: 12,
+  },
+
   // Blokke på EditPageScreen
   blockEmpty: {
     fontSize: 16,

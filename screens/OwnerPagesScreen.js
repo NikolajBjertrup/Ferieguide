@@ -50,7 +50,7 @@ export default function OwnerPagesScreen({ navigation, houseId, pages, setPages 
         contentContainerStyle={GlobalStyle.ownerList}
         ListHeaderComponent={
           <View>
-            {/* Husinfo: navn, velkomst, wifi, udtjekning og kontakt på forsiden */}
+            {/* Husinfo: baggrund, navn, velkomst, wifi og kontakt på forsiden */}
             <Pressable
               style={({ pressed }) => [GlobalStyle.ownerRow, pressed && GlobalStyle.ownerRowPressed]}
               onPress={() => navigation.navigate('EditHouse')}
@@ -58,7 +58,7 @@ export default function OwnerPagesScreen({ navigation, houseId, pages, setPages 
               <Ionicons name="home-outline" size={28} color={GlobalStyle.colors.accent} />
               <View style={GlobalStyle.ownerRowText}>
                 <Text style={GlobalStyle.ownerRowTitle}>Husinfo</Text>
-                <Text style={GlobalStyle.ownerRowStatus}>Navn, velkomst, wifi, udtjekning og kontakt</Text>
+                <Text style={GlobalStyle.ownerRowStatus}>Baggrund, navn, velkomst, wifi og kontakt</Text>
               </View>
               <Ionicons name="chevron-forward" size={24} color={GlobalStyle.colors.textMuted} />
             </Pressable>

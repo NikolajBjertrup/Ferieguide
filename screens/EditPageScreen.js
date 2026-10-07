@@ -179,7 +179,7 @@ export default function EditPageScreen({ navigation, route, houseId, pages, setP
               type="secondary"
               width={160}
               height={56}
-              onPress={() => navigation.navigate('Camera', { pageId: pageId })}
+              onPress={() => navigation.navigate('Camera', { pageId: pageId, returnTo: 'EditPage' })}
             />
             <ButtonComponent title="+ Galleri" type="secondary" width={160} height={56} onPress={pickFromGallery} />
           </View>

@@ -21,7 +21,12 @@ export default function HomeScreen({ navigation, house }) {
   }
 
   return (
-    <ImageBackground source={HOUSE.cover} style={GlobalStyle.homeBackground} resizeMode="cover">
+    // Udlejerens eget baggrundsbillede, hvis der er et – ellers appens standardbillede
+    <ImageBackground
+      source={house.coverUrl ? { uri: house.coverUrl } : HOUSE.cover}
+      style={GlobalStyle.homeBackground}
+      resizeMode="cover"
+    >
       <SafeAreaView style={GlobalStyle.homeOverlay}>
         {/* Diskret tandhjul øverst til højre: fører til udlejer-login */}
         <View style={GlobalStyle.homeTopBar}>
@@ -39,18 +44,13 @@ export default function HomeScreen({ navigation, house }) {
             <Text style={GlobalStyle.homeTitle}>{house.name}</Text>
             <Text style={GlobalStyle.homeWelcome}>{house.welcome}</Text>
 
-            {/* Det gæster oftest leder efter: wifi, udtjekning og kontakt */}
+            {/* Det gæster oftest leder efter: wifi og kontakt */}
             <View style={GlobalStyle.homeInfoRow}>
               <View style={GlobalStyle.homeInfoItem}>
                 <Ionicons name="wifi-outline" size={22} color={GlobalStyle.colors.accent} />
                 <Text style={GlobalStyle.homeInfoLabel}>Wifi</Text>
                 <Text style={GlobalStyle.homeInfoValue}>Navn: {house.wifiName}</Text>
                 <Text style={GlobalStyle.homeInfoValue}>Kode: {house.wifiPassword}</Text>
-              </View>
-              <View style={GlobalStyle.homeInfoItem}>
-                <Ionicons name="time-outline" size={22} color={GlobalStyle.colors.accent} />
-                <Text style={GlobalStyle.homeInfoLabel}>Udtjekning</Text>
-                <Text style={GlobalStyle.homeInfoValue}>{house.checkout}</Text>
               </View>
               <View style={GlobalStyle.homeInfoItem}>
                 <Ionicons name="call-outline" size={22} color={GlobalStyle.colors.accent} />

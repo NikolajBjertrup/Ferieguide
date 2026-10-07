@@ -150,8 +150,8 @@ styles/
 ```
 invites/{KODE}                 { used: false }  → { used: true, usedBy: uid }
 users/{uid}                    { email, inviteCode, createdAt }
-houses/{houseId}               { ownerId, name, welcome, checkout, wifiName,
-                                 wifiPassword, ownerName, ownerPhone, createdAt }
+houses/{houseId}               { ownerId, name, welcome, wifiName, wifiPassword,
+                                 ownerName, ownerPhone, coverUrl, createdAt }
 houses/{houseId}/pages/{id}    { title, icon, active, blocks, order, custom }
 ```
 
@@ -170,7 +170,9 @@ houses/{houseId}/pages/{id}    { title, icon, active, blocks, order, custom }
 
 ### Storage
 
-Billeder ligger i `houses/{houseId}/pages/{pageId}/{tidspunkt}.jpg`.
+Billeder ligger i `houses/{houseId}/pages/{pageId}/{tidspunkt}.jpg` (sider) og
+`houses/{houseId}/cover/{tidspunkt}.jpg` (baggrund på forsiden, link i `coverUrl`;
+mangler den, bruges `HOUSE.cover` fra assets).
 Firestore gemmer kun linket. Slettede billedblokke fjernes ikke fra Storage.
 
 ### data/const.js
@@ -202,15 +204,15 @@ Root er en Stack Navigator i `App.js` med **tre grene**, som vælges ud fra stat
 | `LoginScreen.js` | – | Email + kodeord. Knap til "Opret bruger" |
 | `RegisterScreen.js` | – | Invitationskode (kan komme fra link via `route.params.code`), email, kodeord |
 | `HousesScreen.js` | Udlejer | **FlatList** over egne huse, opret nyt hus, log ud. Bruges som `ChooseHouse` og `Houses` ("Skift hus") |
-| `HomeScreen.js` | Gæst | Coverbillede, husnavn, velkomst, wifi, udtjekning, kontakt. "Se guiden". Tandhjul → `OwnerLogin` |
+| `HomeScreen.js` | Gæst | Baggrund (`coverUrl` eller standard), husnavn, velkomst, wifi, kontakt. "Se guiden". Tandhjul → `OwnerLogin` |
 | `GuideScreen.js` | Gæst | **FlatList** i 2 kolonner med aktive sider. Tryk → `PageScreen` |
 | `PageScreen.js` | Gæst | Titel og sidens blokke (tekst og billeder) i udlejerens rækkefølge |
 | `OwnerLoginScreen.js` | Udlejer | Kodeord til kontoen (re-autentificering) → `OwnerPages` |
 | `OwnerPagesScreen.js` | Udlejer | Husinfo-række, **FlatList** over alle sider med `Switch`, mikrofon og slet (kun egne), "Ny kategori", "Skift hus", "Log ud" |
 | `NewPageScreen.js` | Udlejer | Navn + ikon til en ny kategori → åbner `EditPage` |
-| `EditHouseScreen.js` | Udlejer | Husinfo: navn, velkomst, udtjekning, wifi, kontakt |
+| `EditHouseScreen.js` | Udlejer | Husinfo: baggrund (kamera/galleri/standard), navn, velkomst, wifi, kontakt |
 | `EditPageScreen.js` | Udlejer | Titel, ikon (kun egne kategorier) + blok-editor: + Tekst, + Kamera, + Galleri, ▲ ▼ ✕. "Gem" |
-| `CameraScreen.js` | Udlejer | Tag billede, upload, send `newImageUrl` tilbage til `EditPage` |
+| `CameraScreen.js` | Udlejer | Tag billede, upload, send `newImageUrl` tilbage til `returnTo` (`EditPage` eller `EditHouse`) |
 | `QuickSetupScreen.js` | Udlejer | Talebesked → Whisper → forslag, der erstatter første tekstblok |
 
 Deep link: `linking` i `App.js` mapper `register?code=KODE` til `Register`

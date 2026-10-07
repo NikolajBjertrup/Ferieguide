@@ -1,7 +1,8 @@
 // Sikkerhedsregler for Firebase Storage (FerieGuide).
 // Kopiér HELE filen ind i Firebase Console → Storage → Rules → Publish.
 //
-// Billederne ligger i houses/{houseId}/pages/{pageId}/{fil}.jpg.
+// Billederne ligger i houses/{houseId}/pages/{pageId}/{fil}.jpg (sidernes billeder)
+// og houses/{houseId}/cover/{fil}.jpg (baggrund på forsiden).
 // Reglerne slår op i Firestore for at se, hvem der ejer huset.
 
 rules_version = '2';
@@ -18,6 +19,14 @@ service firebase.storage {
       allow read: if ownsHouse(houseId);
 
       // Kun ejeren må uploade, kun billeder, og max 10 MB pr. billede
+      allow write: if ownsHouse(houseId)
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Baggrundsbilledet på forsiden – samme regler som sidernes billeder
+    match /houses/{houseId}/cover/{fileName} {
+      allow read: if ownsHouse(houseId);
       allow write: if ownsHouse(houseId)
         && request.resource.contentType.matches('image/.*')
         && request.resource.size < 10 * 1024 * 1024;
