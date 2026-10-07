@@ -163,9 +163,10 @@ houses/{houseId}/pages/{id}    { title, icon, active, blocks, order, custom }
   - tekstblok: `{ id, type: 'text', text }`
   - billedblok: `{ id, type: 'image', url }` (download-URL fra Storage)
   - blok-id laves med `newBlockId()`
-- Kategorier: standardkategorierne har faste id'er (fx `koekken`) og kan kun slås
-  fra. Udlejerens egne kategorier har automatisk id og `custom: true`, starter
-  skjulte (`active: false`) og kan slettes. `icon` vælges fra `ICONS` i const.js.
+- Kategorier: standardkategorierne har faste id'er (fx `koekken`) og faste ikoner
+  og kan kun slås fra. Udlejerens egne kategorier har automatisk id og
+  `custom: true`, starter skjulte (`active: false`), kan skifte ikon (fra `ICONS`
+  i const.js) og kan slettes.
 
 ### Storage
 
@@ -208,7 +209,7 @@ Root er en Stack Navigator i `App.js` med **tre grene**, som vælges ud fra stat
 | `OwnerPagesScreen.js` | Udlejer | Husinfo-række, **FlatList** over alle sider med `Switch`, mikrofon og slet (kun egne), "Ny kategori", "Skift hus", "Log ud" |
 | `NewPageScreen.js` | Udlejer | Navn + ikon til en ny kategori → åbner `EditPage` |
 | `EditHouseScreen.js` | Udlejer | Husinfo: navn, velkomst, udtjekning, wifi, kontakt |
-| `EditPageScreen.js` | Udlejer | Titel, ikon + blok-editor: + Tekst, + Kamera, + Galleri, ▲ ▼ ✕. "Gem" |
+| `EditPageScreen.js` | Udlejer | Titel, ikon (kun egne kategorier) + blok-editor: + Tekst, + Kamera, + Galleri, ▲ ▼ ✕. "Gem" |
 | `CameraScreen.js` | Udlejer | Tag billede, upload, send `newImageUrl` tilbage til `EditPage` |
 | `QuickSetupScreen.js` | Udlejer | Talebesked → Whisper → forslag, der erstatter første tekstblok |
 

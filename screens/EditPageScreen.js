@@ -120,7 +120,8 @@ export default function EditPageScreen({ navigation, route, houseId, pages, setP
             value={title}
             onChangeText={setTitle}
           />
-          <IconPickerComponent label="Ikon" value={icon} onChange={setIcon} />
+          {/* Kun egne kategorier kan skifte ikon – standardkategorierne har faste ikoner */}
+          {page.custom && <IconPickerComponent label="Ikon" value={icon} onChange={setIcon} />}
 
           <Text style={GlobalStyle.inpLabel}>Indhold</Text>
           {blocks.length === 0 && (
