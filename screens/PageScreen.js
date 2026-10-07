@@ -5,7 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import ButtonComponent from '../components/ButtonComponent';
 import { GlobalStyle } from '../styles/GlobalStyle';
 
-// Gæst: viser én side med topbillede, titel og sidens blokke (tekst og billeder).
+// Gæst: viser én side med titel og sidens blokke (tekst og billeder).
+// Udlejeren styrer selv rækkefølgen – et billede kan sagtens ligge øverst.
 // `route.params.pageId` kommer fra navigation.navigate('Page', { pageId }) i GuideScreen.
 export default function PageScreen({ navigation, route, pages }) {
   const { pageId } = route.params;
@@ -16,8 +17,6 @@ export default function PageScreen({ navigation, route, pages }) {
   return (
     <View style={GlobalStyle.pageContainer}>
       <ScrollView contentContainerStyle={GlobalStyle.pageScroll}>
-        <Image source={page.image} style={GlobalStyle.pageImage} resizeMode="cover" />
-
         <View style={GlobalStyle.pageTitleRow}>
           <Ionicons name={page.icon} size={32} color={GlobalStyle.colors.accent} />
           <Text style={GlobalStyle.pageTitle}>{page.title}</Text>

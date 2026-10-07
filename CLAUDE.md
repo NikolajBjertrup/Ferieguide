@@ -107,7 +107,7 @@ index.js
 app.json
 babel.config.js
 .env                        ← OPENAI_API_KEY (må aldrig committes)
-assets/                     ← lokale billeder (cover + topbillede pr. side)
+assets/                     ← lokale billeder (forsidens cover, app-ikon, splash)
 components/                 ← genbrugelige komponenter
   ButtonComponent.js
   TextInputComponent.js
@@ -173,9 +173,9 @@ Firestore gemmer kun linket. Slettede billedblokke fjernes ikke fra Storage.
 Bruges kun som **skabelon**, når et nyt hus oprettes (`createHouse`):
 
 - `HOUSE`: standardtekster til husinfo + `cover` (lokalt forsidebillede).
-- `PAGES`: 8 prædefinerede sider, 5 med `active: true`. Hver side har et lokalt
-  topbillede (`image`), som ikke kan ligge i databasen. `getPages` matcher det
-  på sidens `id`.
+- `PAGES`: 8 prædefinerede sider, 5 med `active: true`, hver med én tekstblok.
+  Sider har intet fast topbillede – vil udlejeren have et billede øverst, lægger
+  de en billedblok og flytter den op med pilene.
 
 ### På enheden (AsyncStorage)
 
@@ -199,7 +199,7 @@ Root er en Stack Navigator i `App.js` med **tre grene**, som vælges ud fra stat
 | `HousesScreen.js` | Udlejer | **FlatList** over egne huse, opret nyt hus, log ud. Bruges som `ChooseHouse` og `Houses` ("Skift hus") |
 | `HomeScreen.js` | Gæst | Coverbillede, husnavn, velkomst, wifi, udtjekning, kontakt. "Se guiden". Tandhjul → `OwnerLogin` |
 | `GuideScreen.js` | Gæst | **FlatList** i 2 kolonner med aktive sider. Tryk → `PageScreen` |
-| `PageScreen.js` | Gæst | Topbillede, titel og sidens blokke (tekst og billeder) |
+| `PageScreen.js` | Gæst | Titel og sidens blokke (tekst og billeder) i udlejerens rækkefølge |
 | `OwnerLoginScreen.js` | Udlejer | Kodeord til kontoen (re-autentificering) → `OwnerPages` |
 | `OwnerPagesScreen.js` | Udlejer | Husinfo-række, **FlatList** over alle sider med `Switch` og mikrofon, "Skift hus", "Log ud" |
 | `EditHouseScreen.js` | Udlejer | Husinfo: navn, velkomst, udtjekning, wifi, kontakt |

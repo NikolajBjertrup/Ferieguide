@@ -77,8 +77,7 @@ async function createHouse(name) {
 
   for (let i = 0; i < PAGES.length; i++) {
     const page = PAGES[i];
-    // Sidens id bruges som dokument-id. Billedet (require) kan ikke gemmes
-    // i databasen, så det bliver liggende lokalt i const.js.
+    // Sidens id bruges som dokument-id.
     // order gemmer rækkefølgen, da Firestore ellers sorterer efter id.
     batch.set(doc(db, 'houses', houseRef.id, 'pages', page.id), {
       title: page.title,
@@ -118,22 +117,19 @@ async function updateHouse(houseId, changes) {
 
 // ---------- Sider ----------
 
-// Henter alle sider i ét hus i den rigtige rækkefølge.
-// Billedet ligger ikke i databasen, så vi finder det i const.js ud fra sidens id.
+// Henter alle sider i ét hus i den rigtige rækkefølge
 async function getPages(houseId) {
   const pagesRef = collection(db, 'houses', houseId, 'pages');
   const snapshot = await getDocs(query(pagesRef, orderBy('order')));
 
   return snapshot.docs.map((document) => {
     const data = document.data();
-    const localPage = PAGES.find((p) => p.id === document.id);
     return {
       id: document.id,
       title: data.title,
       icon: data.icon,
       active: data.active,
       blocks: data.blocks,
-      image: localPage ? localPage.image : null,
     };
   });
 }

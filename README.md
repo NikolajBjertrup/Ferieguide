@@ -103,7 +103,7 @@ firebase/           sikkerhedsregler til Firestore og Storage
 screens/            én fil pr. skærm (12 skærme)
 services/           kald til OpenAI (talebesked → tekst → guidetekst)
 styles/             al styling i GlobalStyle.js
-assets/             lokale billeder (forside og topbillede pr. side)
+assets/             lokale billeder (forsidens baggrund, app-ikon)
 ```
 
 ## Kursuskrav

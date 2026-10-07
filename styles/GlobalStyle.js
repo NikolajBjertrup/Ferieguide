@@ -98,13 +98,6 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: "center",
   },
-  pageImage: {
-    width: "100%",
-    maxWidth: 900,
-    height: 280,
-    borderRadius: 20,
-    marginBottom: 24,
-  },
   pageTitleRow: {
     width: "100%",
     maxWidth: 900,

@@ -15,7 +15,6 @@ export const HOUSE = {
 // `icon` er et Ionicons-navn. `id` er unik og bruges som key i FlatList.
 // `blocks` er sidens indhold: en liste af tekst- og billedblokke i den rækkefølge,
 // de vises. En tekstblok er { id, type: "text", text }, en billedblok er { id, type: "image", url }.
-// `image` er sidens faste topbillede, som ligger lokalt i assets/.
 export const PAGES = [
   {
     id: "koekken",
@@ -32,7 +31,6 @@ export const PAGES = [
           "Husk at tømme køleskabet og lade lågen stå på klem, når I rejser.",
       },
     ],
-    image: require("../assets/koekken.png"),
   },
   {
     id: "sauna",
@@ -48,7 +46,6 @@ export const PAGES = [
           "Hæld kun vand på stenene – aldrig olie direkte. Sluk altid saunaen på panelet, når I er færdige, og lad døren stå åben, så den kan tørre.",
       },
     ],
-    image: require("../assets/sauna.png"),
   },
   {
     id: "vaerelser",
@@ -64,7 +61,6 @@ export const PAGES = [
           "Sengelinned og håndklæder er ikke inkluderet, medmindre det er bestilt på forhånd. Ekstra tæpper findes i gangskabet.",
       },
     ],
-    image: require("../assets/vaerelser.png"),
   },
   {
     id: "udtjekning",
@@ -81,7 +77,6 @@ export const PAGES = [
           "Læg nøglen i nøgleboksen ved hoveddøren og drej koden.",
       },
     ],
-    image: require("../assets/udtjekning.png"),
   },
   {
     id: "strand",
@@ -97,7 +92,6 @@ export const PAGES = [
           "Pas på strømmen ved revlerne, og bad altid, hvor der er andre. Redningsposter findes for hver 200 meter.",
       },
     ],
-    image: require("../assets/strand.png"),
   },
   {
     id: "restauranter",
@@ -114,7 +108,6 @@ export const PAGES = [
           "Pizzeria Roma (4 km): Tager imod bestillinger til afhentning.",
       },
     ],
-    image: require("../assets/restauranter.png"),
   },
   {
     id: "kontakt",
@@ -131,7 +124,6 @@ export const PAGES = [
           "Nærmeste læge: Lægehuset i Nørre Vorupør, tlf. 97 93 80 00.",
       },
     ],
-    image: require("../assets/kontakt.png"),
   },
   {
     id: "affald",
@@ -147,6 +139,5 @@ export const PAGES = [
           "Flasker og dåser afleveres i genbrugscontaineren ved købmanden. Spandene tømmes hver torsdag.",
       },
     ],
-    image: require("../assets/affald.png"),
   },
 ];
