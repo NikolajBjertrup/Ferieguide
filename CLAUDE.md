@@ -111,8 +111,9 @@ assets/                     ← lokale billeder (forsidens cover, app-ikon, spla
 components/                 ← genbrugelige komponenter
   ButtonComponent.js
   TextInputComponent.js
+  IconPickerComponent.js    ← gitter til at vælge en kategoris ikon
 data/
-  const.js                  ← standardtekster: HOUSE og PAGES (skabelon for nye huse)
+  const.js                  ← HOUSE og PAGES (skabelon for nye huse) + ICONS (ikonvalg)
 database/
   database.js               ← AL Firebase-kode (som i kursets 06_FirebaseLogin)
 firebase/
@@ -132,7 +133,7 @@ styles/
 - Farver læses fra JS via `GlobalStyle.colors.accent` osv.
 - Skærme og komponenter er `export default function XScreen()`
 - Data eksporteres som konstanter i store bogstaver: `export const PAGES = [...]`
-- Lokale billeder indlæses med `require('../assets/koekken.png')`
+- Lokale billeder indlæses med `require('../assets/hus.png')`
 - Knapper bruger `ButtonComponent` med props `{title, onPress, width, height, type}`,
   hvor `type` er `'primary'` eller `'secondary'`
 - **Ingen inline styles.** Alt skal ligge i `GlobalStyle`.
@@ -151,7 +152,7 @@ invites/{KODE}                 { used: false }  → { used: true, usedBy: uid }
 users/{uid}                    { email, inviteCode, createdAt }
 houses/{houseId}               { ownerId, name, welcome, checkout, wifiName,
                                  wifiPassword, ownerName, ownerPhone, createdAt }
-houses/{houseId}/pages/{id}    { title, icon, active, blocks, order }
+houses/{houseId}/pages/{id}    { title, icon, active, blocks, order, custom }
 ```
 
 - Invitationskoder skrives med STORE bogstaver. `registerUser` normaliserer input.
@@ -162,6 +163,9 @@ houses/{houseId}/pages/{id}    { title, icon, active, blocks, order }
   - tekstblok: `{ id, type: 'text', text }`
   - billedblok: `{ id, type: 'image', url }` (download-URL fra Storage)
   - blok-id laves med `newBlockId()`
+- Kategorier: standardkategorierne har faste id'er (fx `koekken`) og kan kun slås
+  fra. Udlejerens egne kategorier har automatisk id og `custom: true`, starter
+  skjulte (`active: false`) og kan slettes. `icon` vælges fra `ICONS` i const.js.
 
 ### Storage
 
@@ -201,9 +205,10 @@ Root er en Stack Navigator i `App.js` med **tre grene**, som vælges ud fra stat
 | `GuideScreen.js` | Gæst | **FlatList** i 2 kolonner med aktive sider. Tryk → `PageScreen` |
 | `PageScreen.js` | Gæst | Titel og sidens blokke (tekst og billeder) i udlejerens rækkefølge |
 | `OwnerLoginScreen.js` | Udlejer | Kodeord til kontoen (re-autentificering) → `OwnerPages` |
-| `OwnerPagesScreen.js` | Udlejer | Husinfo-række, **FlatList** over alle sider med `Switch` og mikrofon, "Skift hus", "Log ud" |
+| `OwnerPagesScreen.js` | Udlejer | Husinfo-række, **FlatList** over alle sider med `Switch`, mikrofon og slet (kun egne), "Ny kategori", "Skift hus", "Log ud" |
+| `NewPageScreen.js` | Udlejer | Navn + ikon til en ny kategori → åbner `EditPage` |
 | `EditHouseScreen.js` | Udlejer | Husinfo: navn, velkomst, udtjekning, wifi, kontakt |
-| `EditPageScreen.js` | Udlejer | Titel + blok-editor: + Tekst, + Kamera, + Galleri, ▲ ▼ ✕. "Gem" |
+| `EditPageScreen.js` | Udlejer | Titel, ikon + blok-editor: + Tekst, + Kamera, + Galleri, ▲ ▼ ✕. "Gem" |
 | `CameraScreen.js` | Udlejer | Tag billede, upload, send `newImageUrl` tilbage til `EditPage` |
 | `QuickSetupScreen.js` | Udlejer | Talebesked → Whisper → forslag, der erstatter første tekstblok |
 

@@ -18,6 +18,7 @@ import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import HousesScreen from './screens/HousesScreen';
 import EditHouseScreen from './screens/EditHouseScreen';
+import NewPageScreen from './screens/NewPageScreen';
 
 import { GlobalStyle } from './styles/GlobalStyle';
 import { auth, getHouse, getPages } from './database/database';
@@ -159,6 +160,9 @@ export default function App() {
             </Stack.Screen>
             <Stack.Screen name="OwnerPages" options={{ title: 'Rediger guiden' }}>
               {(props) => <OwnerPagesScreen {...props} houseId={houseId} pages={pages} setPages={setPages} />}
+            </Stack.Screen>
+            <Stack.Screen name="NewPage" options={{ title: 'Ny kategori' }}>
+              {(props) => <NewPageScreen {...props} houseId={houseId} pages={pages} setPages={setPages} />}
             </Stack.Screen>
             <Stack.Screen name="EditPage" options={{ title: 'Rediger side' }}>
               {(props) => <EditPageScreen {...props} houseId={houseId} pages={pages} setPages={setPages} />}

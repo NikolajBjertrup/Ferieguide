@@ -141,3 +141,32 @@ export const PAGES = [
     ],
   },
 ];
+
+// Ikoner, udlejeren kan vælge imellem til en kategori (Ionicons-navne).
+// Bruges af IconPickerComponent, når en kategori oprettes eller redigeres.
+export const ICONS = [
+  "information-circle-outline",
+  "book-outline",
+  "key-outline",
+  "restaurant-outline",
+  "cafe-outline",
+  "pizza-outline",
+  "cart-outline",
+  "bed-outline",
+  "flame-outline",
+  "bonfire-outline",
+  "water-outline",
+  "snow-outline",
+  "sunny-outline",
+  "leaf-outline",
+  "paw-outline",
+  "fish-outline",
+  "bicycle-outline",
+  "car-outline",
+  "boat-outline",
+  "walk-outline",
+  "map-outline",
+  "game-controller-outline",
+  "musical-notes-outline",
+  "medkit-outline",
+];

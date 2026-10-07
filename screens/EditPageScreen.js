@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 
 import ButtonComponent from '../components/ButtonComponent';
 import TextInputComponent from '../components/TextInputComponent';
+import IconPickerComponent from '../components/IconPickerComponent';
 import { GlobalStyle } from '../styles/GlobalStyle';
 import { updatePage, newBlockId, uploadImage } from '../database/database';
 
@@ -18,6 +19,7 @@ export default function EditPageScreen({ navigation, route, houseId, pages, setP
   // Kladde: vi redigerer lokale kopier og skriver først til den globale
   // state, når brugeren trykker "Gem". Annuller efterlader alt uændret.
   const [title, setTitle] = useState(page.title);
+  const [icon, setIcon] = useState(page.icon);
   const [blocks, setBlocks] = useState(page.blocks);
   const [uploading, setUploading] = useState(false); // true mens et galleribillede uploades
   const [error, setError] = useState('');
@@ -91,9 +93,9 @@ export default function EditPageScreen({ navigation, route, houseId, pages, setP
     if (uploading) {
       return;
     }
-    setPages(pages.map((p) => (p.id === pageId ? { ...p, title: title, blocks: blocks } : p)));
+    setPages(pages.map((p) => (p.id === pageId ? { ...p, title: title, icon: icon, blocks: blocks } : p)));
     // Gem også i Firestore, så ændringen er der næste gang appen åbnes
-    updatePage(houseId, pageId, { title: title, blocks: blocks }).catch((error) =>
+    updatePage(houseId, pageId, { title: title, icon: icon, blocks: blocks }).catch((error) =>
       console.log('Kunne ikke gemme i Firestore:', error.message)
     );
     navigation.goBack();
@@ -108,7 +110,7 @@ export default function EditPageScreen({ navigation, route, houseId, pages, setP
       >
         <View style={GlobalStyle.editCard}>
           <View style={GlobalStyle.editHeader}>
-            <Ionicons name={page.icon} size={28} color={GlobalStyle.colors.accent} />
+            <Ionicons name={icon} size={28} color={GlobalStyle.colors.accent} />
             <Text style={GlobalStyle.editHeaderText}>{page.title}</Text>
           </View>
 
@@ -118,6 +120,7 @@ export default function EditPageScreen({ navigation, route, houseId, pages, setP
             value={title}
             onChangeText={setTitle}
           />
+          <IconPickerComponent label="Ikon" value={icon} onChange={setIcon} />
 
           <Text style={GlobalStyle.inpLabel}>Indhold</Text>
           {blocks.length === 0 && (

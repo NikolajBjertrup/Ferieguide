@@ -25,6 +25,7 @@ https://youtube.com/shorts/8t2mC9-cTaE?feature=share
 - Lås udlejertilstand op med **kodeordet til kontoen** (tandhjulet på forsiden)
 - Ret husinfo (navn, velkomst, wifi, udtjekning, kontakt)
 - Slå sider til/fra for gæsten
+- Opret **egne kategorier** med navn og ikon (fx cykler, pool, husdyr) og slet dem igen
 - Byg siderne af blokke: tekst, billeder fra **kameraet** eller **galleriet**,
   flyt dem op/ned og slet dem
 - **Lynopsætning**: indtal en side som talebesked – den bliver transskriberet og
@@ -76,7 +77,7 @@ Appen har ingen egen server. Den bruger **Firebase** direkte:
 invites/{KODE}                 { used, usedBy }
 users/{uid}                    { email, inviteCode, createdAt }
 houses/{houseId}               { ownerId, name, welcome, checkout, wifiName, ... }
-houses/{houseId}/pages/{id}    { title, icon, active, order, blocks }
+houses/{houseId}/pages/{id}    { title, icon, active, order, blocks, custom }
 ```
 
 En sides `blocks` er en liste af tekst- og billedblokke, fx
@@ -96,11 +97,11 @@ og [`firebase/storage.rules`](firebase/storage.rules):
 
 ```
 App.js              navigation og global state (bruger, valgt hus, husinfo, sider)
-components/         genbrugelige komponenter (ButtonComponent, TextInputComponent)
+components/         genbrugelige komponenter (knap, tekstfelt, ikonvælger)
 data/const.js       standardtekster og -sider, som nye huse oprettes ud fra
 database/           al kode, der taler med Firebase
 firebase/           sikkerhedsregler til Firestore og Storage
-screens/            én fil pr. skærm (12 skærme)
+screens/            én fil pr. skærm (13 skærme)
 services/           kald til OpenAI (talebesked → tekst → guidetekst)
 styles/             al styling i GlobalStyle.js
 assets/             lokale billeder (forsidens baggrund, app-ikon)
@@ -111,7 +112,7 @@ assets/             lokale billeder (forsidens baggrund, app-ikon)
 | Krav | Hvor |
 |---|---|
 | Min. 3 views | Alle skærme er bygget af `View`-komponenter |
-| Min. 3 screens med navigation | 12 skærme i en Stack Navigator (`App.js`) |
+| Min. 3 screens med navigation | 13 skærme i en Stack Navigator (`App.js`) |
 | Min. 2 knapper, mindst én med funktion | `ButtonComponent`, fx "Se guiden" der navigerer |
 | Min. 1 liste | `FlatList` i `GuideScreen`, `OwnerPagesScreen` og `HousesScreen` |
 | Styling i separat fil | `styles/GlobalStyle.js` |

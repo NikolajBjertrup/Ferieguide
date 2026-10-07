@@ -13,7 +13,9 @@ import {
   getDocs,
   getDoc,
   doc,
+  setDoc,
   updateDoc,
+  deleteDoc,
   query,
   orderBy,
   where,
@@ -130,8 +132,31 @@ async function getPages(houseId) {
       icon: data.icon,
       active: data.active,
       blocks: data.blocks,
+      order: data.order,
+      custom: data.custom === true, // true = udlejerens egen kategori (kan slettes)
     };
   });
+}
+
+// Opretter en ny, tom kategori (side) i huset og giver den tilbage som objekt,
+// så den kan lægges direkte ind i state. Den starter skjult for gæsten.
+async function createPage(houseId, title, icon, order) {
+  const pageRef = doc(collection(db, 'houses', houseId, 'pages')); // automatisk id
+  const page = {
+    title: title.trim(),
+    icon: icon,
+    active: false,
+    blocks: [],
+    order: order,
+    custom: true,
+  };
+  await setDoc(pageRef, page);
+  return { id: pageRef.id, ...page };
+}
+
+// Sletter en kategori. Billeder i Storage bliver liggende (som ved slettede billedblokke).
+async function deletePage(houseId, pageId) {
+  await deleteDoc(doc(db, 'houses', houseId, 'pages', pageId));
 }
 
 // Gemmer ændringer på én side, fx updatePage(houseId, 'koekken', { active: false }).
@@ -225,6 +250,8 @@ export {
   getHouse,
   updateHouse,
   getPages,
+  createPage,
+  deletePage,
   updatePage,
   newBlockId,
   uploadImage,

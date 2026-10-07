@@ -271,6 +271,35 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: COLORS.text,
   },
+  // "Ny kategori"-rækken på OwnerPagesScreen
+  ownerRowAdd: {
+    borderStyle: "dashed",
+  },
+
+  // IconPickerComponent
+  iconGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  iconOption: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+  },
+  iconOptionSelected: {
+    borderColor: COLORS.accent,
+    backgroundColor: COLORS.accentSoft,
+  },
+  iconOptionPressed: {
+    opacity: 0.6,
+  },
+
   // Blokke på EditPageScreen
   blockEmpty: {
     fontSize: 16,
