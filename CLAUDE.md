@@ -31,31 +31,48 @@ Roller på enheden:
 Selve låsningen af iPad'en til én app sker via iOS Vejledt adgang (Guided
 Access), ikke i vores kode.
 
-Dette er en skoleopgave (CBS, kurset INNT). Backend er **Firebase**
-(Authentication, Firestore og Storage) direkte fra appen – ingen egen server.
+Backend er **Firebase** (Authentication, Firestore og Storage) direkte fra
+appen – ingen egen server.
+
+### Målet
+
+Appen startede som en skoleopgave (CBS, kurset INNT), men målet er nu en
+**færdig, rigtig app** med mange funktioner, som kan bruges af rigtige udlejere
+og lejere. Skoleopgavens minimumskrav (antal views, skærme, knapper, lister)
+er ikke længere styrende. Prioritér det, en rigtig bruger har brug for:
+stabilitet, sikkerhed, et færdigt udseende og funktioner, der løser udlejerens
+og gæstens problemer.
+
+Første milepæl: appen kører via **TestFlight** på en iPad i udlejerens eget
+sommerhus, så kundetilfredsheden kan testes med rigtige lejere (se §11).
 
 ---
 
-## 2. Hårde krav fra opgaven
+## 2. Kvalitetskrav
 
-Koden SKAL indeholde:
+Fordi appen skal bruges af rigtige mennesker, gælder:
 
-- [x] Minimum 3 views
-- [x] Minimum 3 screens med navigation
-- [x] Minimum 2 knapper, hvoraf mindst én har en funktion (fx navigerer)
-- [x] Minimum 1 liste (FlatList) – GuideScreen, OwnerPagesScreen, HousesScreen
-- [x] Al styling i en separat fil
-- [x] En README.md med link til demovideo
-
-Tjek dem igen, inden vi afleverer.
+- **Gæstetilstand må aldrig gå i stykker.** Fejl ved hentning skal vises pænt
+  (eller falde tilbage på noget fornuftigt) – ikke som en hvid skærm eller evig
+  spinner.
+- **Sikkerhed:** nye data skal dækkes af sikkerhedsregler, før funktionen er
+  færdig. Hemmelige nøgler må ikke ende et sted, hvor andre kan læse dem.
+- **Persondata (GDPR):** gemmer vi noget om gæster, skal det være begrundet,
+  minimalt og forklaret for gæsten.
+- **Ingen testdata eller udviklerting i det, brugeren ser** (fx `console.log`
+  med hemmeligheder, eksempeltekster, der ligner rigtige oplysninger).
+- README.md skal holdes opdateret, så den beskriver den aktuelle app. Den bruges
+  stadig til eksamen: behold intro om CBS/INNT, demovideo-linket og tabellen
+  med kursuskrav – og tjek at kravene stadig er opfyldt, når koden ændres.
 
 ---
 
-## 3. Teknisk stak — lås dig til denne
+## 3. Teknisk stak
 
-Oprindeligt låst til kursets undervisningsrepo (CBS-INNT-26) på Expo
+Oprindeligt baseret på kursets undervisningsrepo (CBS-INNT-26) på Expo
 ~53.0.22. Opgraderet 2026-09-11 til SDK 57, fordi Expo Go på telefonen
-kun understøtter nyeste SDK. Afvig ikke yderligere uden at spørge.
+kun understøtter nyeste SDK. Opgradér ikke SDK eller større biblioteker uden
+at spørge.
 
 ```
 expo                                ~57.0.26
@@ -88,18 +105,24 @@ Bemærk: `react-native-reanimated` 4.x kræver New Architecture og
 `react-native-worklets`. `app.json` bruger config-plugins for
 `expo-splash-screen`, `expo-audio`, `expo-camera` og `expo-image-picker`.
 
-**Forbudt uden at spørge først:**
+**Kræver at du spørger mig først** (foreslå og begrund – jeg godkender):
 
-- expo-router (kurset bruger klassisk `App.js` + `index.js`)
-- TypeScript
-- Tailwind, NativeWind, styled-components
-- Redux, Context eller andre state-biblioteker
-- Nye npm-pakker overhovedet
-- Andre Firebase-tjenester end Auth, Firestore og Storage (fx Cloud Functions)
+- Nye npm-pakker (brug `npx expo install`, så versionen passer til SDK'et)
+- Nye Firebase-tjenester ud over Auth, Firestore og Storage (fx Hosting,
+  Cloud Functions, Analytics, Crashlytics)
+- Andre eksterne tjenester eller betalte API'er
+
+**Vi bruger ikke** (kodekonventionerne beholdes, selvom skoleopgaven er slut):
+
+- expo-router – vi bruger klassisk `App.js` + `index.js` med React Navigation
+- TypeScript – koden er JavaScript
+- Tailwind, NativeWind, styled-components – al styling i `GlobalStyle.js`
+- Redux, Context eller andre state-biblioteker – state ligger i `App.js` og
+  sendes som props
 
 ---
 
-## 4. Mappestruktur — følg kursets konvention præcist
+## 4. Mappestruktur og konventioner
 
 ```
 App.js                      ← navigation + global state (user, houseId, house, pages)
@@ -126,7 +149,7 @@ styles/
   GlobalStyle.js            ← AL styling
 ```
 
-### Konventioner fra kursets kode
+### Konventioner (fra kursets kode – beholdes)
 
 - Stylingfilen hedder `styles/GlobalStyle.js` og eksporterer et **named
   export**: `export const GlobalStyle = StyleSheet.create({ ... })`
@@ -267,33 +290,23 @@ Appen skal se ud som et **iPad-produkt i landscape**, ikke som en telefon-app.
 
 ---
 
-## 9. Arbejdsform og status
+## 9. Arbejdsform
 
-Jeg er studerende og skal kunne forklare koden bagefter. Derfor:
-
-1. **Én ting ad gangen.** Byg ét trin, lad mig teste det i Expo Go, og gå
-   først videre når jeg siger til.
-2. **Forklar kort**, hvad du har skrevet, og hvorfor, efter hver ændring.
-   Særligt nye begreber (fx `useEffect` med afhængigheder, `useRef`, batch,
-   `where`, re-autentificering).
-3. **Spørg, hvis noget er uklart** i stedet for at gætte på et design.
+1. **Hele funktioner ad gangen.** Byg en samlet funktion færdig (data, regler,
+   skærme, styling), før jeg tester den i Expo Go. Del kun op, hvis funktionen
+   er stor nok til, at noget kan gå galt undervejs.
+2. **Kort opsummering bagefter:** hvad er ændret (filer), hvad skal jeg gøre
+   (fx publicere regler) og hvordan jeg tester. Ingen lange forklaringer af
+   kendte begreber – kun af nye, ikke-oplagte ting.
+3. **Spørg, hvis noget er uklart** i stedet for at gætte på et design eller
+   en adfærd, brugeren vil mærke.
 4. **Ingen store refaktoreringer** uden at spørge.
 5. Skriv kommentarer på dansk i koden.
 6. Ændringer i Firebase Console laver jeg selv – giv mig trinvise instruktioner.
+7. Opdatér denne fil og README.md, når datamodel, skærme eller stak ændres.
 
-### Status for flerbruger-udvidelsen
-
-- [x] 1. Console: Email/Password + invitationskoder
-- [x] 2. Login og opret bruger med kode
-- [x] 3. Flere huse pr. bruger, valgt hus huskes på enheden
-- [x] 4. Udlejertilstand med kodeord (PIN er fjernet)
-- [x] 5. Husinfo i databasen + EditHouseScreen
-- [x] 6. Link (deep link), der åbner "Opret bruger" med koden udfyldt
-- [x] 7. Sikkerhedsregler for Firestore og Storage + oprydning i gammel
-      `pages`-collection og gamle billeder under `pages/` i Storage
-
-Jeg committer og pusher selv efter hvert trin. Claude må ikke lave
-git commit eller git push – kun minde mig om det, når et trin er færdigt.
+Jeg committer og pusher selv. Claude må ikke lave git commit eller git push –
+kun minde mig om det, når en funktion er færdig.
 
 ---
 
@@ -307,3 +320,42 @@ npx expo start --tunnel # på CBS-netværk / eduroam
 Efter installation af nye pakker eller ændringer i `app.json`: genstart Expo helt.
 
 `node_modules/` og `.env` må aldrig committes. Begge står i `.gitignore`.
+
+---
+
+## 11. Køreplan og kendte begrænsninger
+
+### Næste milepæl: TestFlight på sommerhus-iPad'en
+
+- [ ] Apple Developer Program + Expo-konto (mig)
+- [ ] `app.json`: `ios.bundleIdentifier`, `ios.config.usesNonExemptEncryption: false`,
+      evt. `orientation: "landscape"`
+- [ ] `eas.json` med production-profil og `autoIncrement`
+- [ ] `babel.config.js`: dotenv-stien skal være `.env`, ikke `../.env`
+- [ ] OpenAI-nøglen som EAS-miljøvariabel (`.env` kommer ikke med op til EAS)
+- [ ] Build (`eas build`) + upload (`eas submit`) + intern TestFlight-gruppe
+- [ ] Separat Apple-ID til sommerhus-iPad'en, automatiske opdateringer fra
+- [ ] Påmindelse: TestFlight-builds udløber efter 90 dage
+
+### Idéer til funktioner
+
+- Feedback fra gæster (stjerner + kommentar i Firestore, med egne regler og GDPR-tekst)
+- Bookinger med ankomst/afrejse, så udtjekning kan vises igen med rigtig dato
+- Flere sprog til gæsterne (fx dansk, engelsk, tysk)
+- Visning af hvilke sider gæsterne bruger (kræver godkendelse af evt. ny tjeneste)
+
+### Kendte begrænsninger
+
+- **OpenAI-nøglen ligger i app-koden** (`react-native-dotenv` bager den ind i
+  bundlen). Acceptabelt på en lukket TestFlight-iPad med beløbsgrænse på
+  nøglen – men skal flyttes til en server (fx Cloud Functions), før appen
+  deles bredt eller laves som web-app.
+- Appen virker ikke som web-app uden ombygning (Firebase-login-persistens,
+  `Alert.alert`, lydupload til Whisper og nøglen ovenfor).
+- Firestore har ingen offline-cache i vores opsætning: ingen wifi ved opstart
+  = tom guide.
+- Billeder i Storage slettes ikke, når en billedblok, kategori eller baggrund
+  fjernes.
+- Invitationskoder oprettes manuelt i Console – der er ingen webshop.
+- Ubrugte pakker: `react-native-gifted-chat`, `react-native-keyboard-controller`,
+  og `services/ChatFaceData.js` kan ryddes op.
