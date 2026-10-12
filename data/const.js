@@ -110,8 +110,8 @@ export const PAGES = [
   },
   {
     id: "kontakt",
-    title: "Kontakt",
-    icon: "call-outline",
+    title: "Hjælp ved problemer",
+    icon: "help-buoy-outline",
     active: false,
     blocks: [
       {

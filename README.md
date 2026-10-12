@@ -30,7 +30,8 @@ https://youtube.com/shorts/8t2mC9-cTaE?feature=share
 - Opret **egne kategorier** med navn og ikon (fx cykler, pool, husdyr) og slet dem igen
 - Byg siderne af blokke: tekst, billeder fra **kameraet** eller **galleriet**,
   flyt dem op/ned og slet dem
-- **AI quick-setup**: vælg kategorier og gennemgå hele sommerhuset i en chat.
+- **AI quick-setup**: en startside, hvor appens hjælper (en lille hus-figur) forklarer
+  de fire trin. Vælg derefter kategorier og gennemgå hele sommerhuset i en chat.
   Svar med tekst eller tale, få opfølgende spørgsmål og gæstevenlige tekstforslag,
   tilføj billeder og godkend husinfo og guidesider samlet.
 - Gem og genoptag en opsætningskladde, ret tidligere svar og spring spørgsmål over.
@@ -78,21 +79,28 @@ afleveringen og står ikke her, da repoet kan være offentligt.
 
 ### Test af AI quick-setup
 
-1. Åbn **Rediger guiden → AI quick-setup**. Vælg fx Køkken, Bad og Det særlige ved huset.
+1. Åbn **Rediger guiden → AI quick-setup**. Startsiden viser hjælperen og de fire trin;
+   tryk **Kom i gang**. Hjælperen spørger, om den skal vælge det, de fleste huse har; **Ja tak, vælg for mig** slår Køkken, Bad,
+   Ankomst & parkering, Udtjekning og Affald & genbrug til på én gang. Kategorierne står i grupper (I huset, Praktisk,
+   Ude og omkring, Særligt for dit hus). Slå til og fra, fx Det særlige ved huset.
    Du kan også oprette din egen kategori.
 2. Tryk **Start samtalen**. Assistenten starter med husnavn, velkomst, wifi og kontakt.
-   Brug emnelisten til at skifte kategori. Svar med tekst, eller tryk **Indtal svar**,
+   Samtalen er en chat med hjælperen: emnerne står som en række øverst, og skrivefeltet
+   sidder fast i bunden. Svar med tekst og **pilen**, eller tryk på **mikrofonen**
    og stop optagelsen. Talesvaret bliver automatisk transskriberet og sendt ind i
    chatten. Ved fejl kan optagelsen prøves igen; transskriberet tekst bevares i
    skrivefeltet, hvis AI-svaret fejler.
-3. Kontrollér opfølgende spørgsmål og tekstforslaget. **Ret svar** genoptager samtalen
+3. Kontrollér opfølgende spørgsmål og tekstforslaget. På telefon ligger tekstforslaget under fanen
+   **Udkast til gæsten**; på iPad står det til højre for samtalen. **Ret** under et svar genoptager samtalen
    fra det valgte svar; de efterfølgende svar i samme emne erstattes. Du kan også rette
    gæsteteksten direkte eller springe et spørgsmål/emne over. Når assistenten har
    gennemgået et emne, åbner det næste automatisk. Efter sidste emne åbnes billeder.
-4. Tryk **Gem og luk**, åbn quick-setuppet igen og kontrollér, at kladden er bevaret.
+4. Tryk på **krydset** i topbjælken (kladden gemmes automatisk), åbn quick-setuppet igen og kontrollér, at startsiden siger
+   **Velkommen tilbage!**, og at **Fortsæt hvor du slap** åbner samme trin med kladden bevaret.
+   Tryk på tallene øverst for at hoppe frem og tilbage mellem de trin, du allerede har været på.
    Vent på **Kladde gemt**, før appen lukkes helt. Uden netforbindelse vises en gemmefejl.
 5. Tilføj billeder fra galleri eller kamera. Højst 12 pr. kategori, under 9 MB pr. billede.
-   Hvert AI-afsnit er en separat tekstblok. Brug pilene til at flytte billeder ind
+   Hvert AI-afsnit er en separat tekstblok med en kort overskrift (fx Gaskomfur), som gæsten også ser. Brug pilene til at flytte billeder ind
    mellem tekstblokkene; tilføj, ret eller fjern blokke som ved manuel opsætning.
 6. Gennemse husinfo og kategorier. **Godkend og opret guide** opdaterer husinfo og
    publicerer alle valgte kategorier med indhold i én Firestore-transaktion.
@@ -143,7 +151,8 @@ Visuel kontrol af de rigtige skærmkomponenter med fiktive data, uden login:
 node tests/previewQuickSetup.cjs
 ```
 
-Åbn `http://127.0.0.1:8096/?step=0&width=1194` og skift `step` mellem 0–3.
+Åbn `http://127.0.0.1:8096/?step=0&width=1194`. Startsiden vises som standard (`&new=1`
+viser den for en helt ny opsætning). Tilføj `&intro=0` og skift `step` mellem 0–3 for at se trinnene.
 Dette er en statisk designkontrol, ikke en interaktiv erstatning for testen i Expo Go.
 
 ## Arkitektur
@@ -166,7 +175,7 @@ houses/{houseId}/pages/{id}    { title, icon, active, order, blocks, custom }
 ```
 
 En sides `blocks` er en liste af tekst- og billedblokke, fx
-`{ type: 'text', text: '...' }` og `{ type: 'image', url: '...' }`.
+`{ type: 'text', title: 'Gaskomfur', text: '...' }` (overskriften er valgfri) og `{ type: 'image', url: '...' }`.
 
 ### Sikkerhed
 

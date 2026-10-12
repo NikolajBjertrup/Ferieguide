@@ -20,6 +20,9 @@ export default function HomeScreen({ navigation, house }) {
     );
   }
 
+  const hasWifi = !!(house.wifiName || house.wifiPassword);
+  const hasContact = !!(house.ownerName || house.ownerPhone);
+
   return (
     // Udlejerens eget baggrundsbillede, hvis der er et – ellers appens standardbillede
     <ImageBackground
@@ -44,21 +47,21 @@ export default function HomeScreen({ navigation, house }) {
             <Text style={GlobalStyle.homeTitle}>{house.name}</Text>
             <Text style={GlobalStyle.homeWelcome}>{house.welcome}</Text>
 
-            {/* Det gæster oftest leder efter: wifi og kontakt */}
-            <View style={GlobalStyle.homeInfoRow}>
-              <View style={GlobalStyle.homeInfoItem}>
+            {/* Det gæster oftest leder efter: wifi og kontakt. Tomme oplysninger vises ikke. */}
+            {(hasWifi || hasContact) && <View style={GlobalStyle.homeInfoRow}>
+              {hasWifi && <View style={GlobalStyle.homeInfoItem}>
                 <Ionicons name="wifi-outline" size={22} color={GlobalStyle.colors.accent} />
                 <Text style={GlobalStyle.homeInfoLabel}>Wifi</Text>
-                <Text style={GlobalStyle.homeInfoValue}>Navn: {house.wifiName}</Text>
-                <Text style={GlobalStyle.homeInfoValue}>Kode: {house.wifiPassword}</Text>
-              </View>
-              <View style={GlobalStyle.homeInfoItem}>
+                {!!house.wifiName && <Text style={GlobalStyle.homeInfoValue}>Navn: {house.wifiName}</Text>}
+                {!!house.wifiPassword && <Text style={GlobalStyle.homeInfoValue}>Kode: {house.wifiPassword}</Text>}
+              </View>}
+              {hasContact && <View style={GlobalStyle.homeInfoItem}>
                 <Ionicons name="call-outline" size={22} color={GlobalStyle.colors.accent} />
                 <Text style={GlobalStyle.homeInfoLabel}>Kontakt</Text>
-                <Text style={GlobalStyle.homeInfoValue}>{house.ownerName}</Text>
-                <Text style={GlobalStyle.homeInfoValue}>{house.ownerPhone}</Text>
-              </View>
-            </View>
+                {!!house.ownerName && <Text style={GlobalStyle.homeInfoValue}>{house.ownerName}</Text>}
+                {!!house.ownerPhone && <Text style={GlobalStyle.homeInfoValue}>{house.ownerPhone}</Text>}
+              </View>}
+            </View>}
 
             <ButtonComponent
               title="Se guiden"

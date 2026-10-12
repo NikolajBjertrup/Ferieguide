@@ -1,29 +1,46 @@
 import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Text, View, ScrollView, Pressable, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform, AppState, useWindowDimensions } from 'react-native';
+import { Text, View, ScrollView, Pressable, ActivityIndicator, TextInput, KeyboardAvoidingView, Keyboard, Platform, AppState, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAudioRecorder, useAudioRecorderState, setAudioModeAsync, AudioModule, RecordingPresets } from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
 
 import ButtonComponent from '../components/ButtonComponent';
 import TextInputComponent from '../components/TextInputComponent';
 import GuideBlocksEditor from '../components/GuideBlocksEditor';
+import GuideAgentComponent, { GuideAgentIcon } from '../components/GuideAgentComponent';
 import { ContinueQuickSetup, TranscribeAudio } from '../services/Request';
 import useQuickSetupDraft from '../services/useQuickSetupDraft';
-import { advanceTopic, applyAssistantResult, makeSession, MAX_ANSWER_LENGTH, MAX_CATEGORIES, MAX_TURNS, setupPages, setupTopics, withBlocks } from '../services/quickSetup';
-import { HOUSE_FIELDS, HOUSE_TOPIC_ID, SETUP_STEPS } from '../data/quickSetup';
+import { advanceTopic, applyAssistantResult, furthestStep, goToStep, groupCategories, hasWifi, makeSession, recommendedIds, toggleRecommended, MAX_ANSWER_LENGTH, MAX_CATEGORIES, MAX_TURNS, setupPages, setupStarted, setupTopics, toggleWifi, withBlocks } from '../services/quickSetup';
+import { AGENT_NAME, HOUSE_FIELDS, HOUSE_INFO_TEXT, WIFI_FIELDS, WIFI_OPTION, HOUSE_TOPIC_ID, SETUP_FACTS, SETUP_INTRO, SETUP_STEPS } from '../data/quickSetup';
 import { GlobalStyle as S } from '../styles/GlobalStyle';
 import { newBlockId, publishQuickSetup, uploadImage } from '../database/database';
 
+const SAVE_STATUS = {
+  saved: { icon: 'cloud-done-outline', text: 'Kladde gemt' },
+  error: { icon: 'cloud-offline-outline', text: 'Kladden er ikke gemt' },
+};
 const FIELD_LABELS = { name: 'Husets navn', welcome: 'Velkomst til gæsterne', wifiName: 'Wifi-navn', wifiPassword: 'Wifi-adgangskode', ownerName: 'Kontaktperson', ownerPhone: 'Telefonnummer' };
 
-function SmallButton({ title, icon, onPress, disabled, active = false, label }) {
+// `compact` er en lille pille-knap, fx hjælperens svarknap i taleboblen.
+// Rund ikonknap til skrivefeltet i samtalen (mikrofon og send).
+function RoundButton({ label, icon, onPress, disabled, filled = false }) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress} hitSlop={6}
+      style={({ pressed }) => [S.chatRound, filled && S.chatRoundFilled, pressed && S.setupDisabled, disabled && S.setupDisabled]}>
+      <Ionicons name={icon} size={24} color={filled ? S.colors.surface : S.colors.accent} />
+    </Pressable>
+  );
+}
+
+function SmallButton({ title, icon, onPress, disabled, active = false, label, compact = false }) {
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={label || title} accessibilityState={{ disabled: !!disabled, selected: active }}
-      disabled={disabled} onPress={onPress}
-      style={({ pressed }) => [S.setupSmallButton, active && S.setupSmallButtonActive, pressed && S.setupPressed, disabled && S.setupDisabled]}>
-      {icon && <Ionicons name={icon} size={21} color={S.colors.accent} />}
-      <Text style={S.setupSmallButtonText}>{title}</Text>
+      disabled={disabled} onPress={onPress} hitSlop={compact ? 8 : 0}
+      style={({ pressed }) => [S.setupSmallButton, compact && S.setupSmallButtonCompact, active && S.setupSmallButtonActive, pressed && S.setupPressed, disabled && S.setupDisabled]}>
+      {icon && <Ionicons name={icon} size={compact ? 16 : 21} color={S.colors.accent} />}
+      <Text style={[S.setupSmallButtonText, compact && S.setupSmallButtonTextCompact]}>{title}</Text>
     </Pressable>
   );
 }
@@ -39,16 +56,26 @@ export default function QuickSetupScreen({ navigation, houseId, setPages, setHou
   const [failedRecording, setFailedRecording] = useState(null);
   const [transitionNotice, setTransitionNotice] = useState('');
   const [success, setSuccess] = useState(null);
+  // Startsiden vises, hver gang opsætningen åbnes. Den er ikke en del af kladden.
+  const [intro, setIntro] = useState(true);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  // På telefon vises samtalen og udkastet til gæsten som to faner.
+  const [chatView, setChatView] = useState('chat');
   const lock = useRef(false);
   const mounted = useRef(true);
   const allowLeave = useRef(false);
   const requestController = useRef(null);
   const chatScroll = useRef(null);
   const outerScroll = useRef(null);
+  const shell = useRef(null);
+  const customInput = useRef(null);
+  const customFocused = useRef(false);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder, 250);
   const { width } = useWindowDimensions();
   const wide = width >= 1000;
+  // Grupperne står side om side på iPad og under hinanden på telefon, så titler ikke knækker.
+  const groupColumns = wide ? S.setupCols4 : width >= 700 ? S.setupCols2 : S.setupCols1;
   const topics = draft ? setupTopics(draft) : [];
   const topic = topics.find((item) => item.id === draft?.currentTopicId) || topics[0];
   const session = draft?.sessions[topic?.id];
@@ -81,9 +108,42 @@ export default function QuickSetupScreen({ navigation, houseId, setPages, setHou
     }).finally(() => { lock.current = false; if (mounted.current) setBusy(''); });
   }), [navigation, draft, recording, flush, completed]);
 
+  // Topbjælken: tilbage ét trin til venstre og luk til højre. Luk gemmer kladden (se beforeRemove).
+  const step = draft?.step;
   useEffect(() => {
-    navigation.setOptions({ gestureEnabled: false, headerBackVisible: false, headerLeft: () => null });
-  }, [navigation, locked]);
+    const goBackStep = () => {
+      if (locked) return;
+      setError(''); setTransitionNotice('');
+      if (step > 0) setDraft((current) => goToStep(current, current.step - 1));
+      else setIntro(true);
+    };
+    // Begge knapper er ens: et lille ikon uden baggrund, så de ikke fylder i topbjælken.
+    const headerButton = (label, icon, onPress) => () => (
+      <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: locked }} disabled={locked} hitSlop={12}
+        onPress={onPress} style={({ pressed }) => [S.setupHeaderButton, (pressed || locked) && S.setupDisabled]}>
+        <Ionicons name={icon} size={24} color={S.colors.text} />
+      </Pressable>
+    );
+    navigation.setOptions({
+      gestureEnabled: false, headerBackVisible: false,
+      headerLeft: !intro && step !== undefined && success === null ? headerButton('Tilbage', 'chevron-back', goBackStep) : () => null,
+      headerRight: success === null ? headerButton('Luk', 'close', () => navigation.goBack()) : () => null,
+    });
+  }, [navigation, locked, intro, step, success, setDraft]);
+
+  // Rul feltet til egen kategori op over tastaturet. Måles i forhold til sidens indhold.
+  function showCustomInput() {
+    customInput.current?.measureLayout?.(shell.current, (x, y) => {
+      outerScroll.current?.scrollTo({ y: Math.max(0, y - 90), animated: true });
+    }, () => {});
+  }
+
+  // Den faste bundlinje skjules, mens tastaturet er fremme, så der er plads til at skrive.
+  useEffect(() => {
+    const shown = Keyboard.addListener('keyboardDidShow', () => { setKeyboardOpen(true); if (customFocused.current) showCustomInput(); });
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false));
+    return () => { shown.remove(); hidden.remove(); };
+  }, []);
 
   function changeSession(changes, id = topic.id) {
     setDraft((current) => ({ ...current, sessions: { ...current.sessions, [id]: { ...current.sessions[id], ...changes } } }));
@@ -93,18 +153,18 @@ export default function QuickSetupScreen({ navigation, houseId, setPages, setHou
     setDraft((current) => ({ ...current, sessions: { ...current.sessions, [id]: withBlocks(current.sessions[id], blocks) } }));
   }
 
-  useEffect(() => { outerScroll.current?.scrollTo({ y: 0, animated: true }); }, [draft?.step, draft?.currentTopicId]);
+  useEffect(() => { outerScroll.current?.scrollTo({ y: 0, animated: true }); }, [draft?.step, draft?.currentTopicId, intro]);
 
   function changeStep(step) {
     if (locked) return;
     setError('');
-    setDraft((current) => ({ ...current, step }));
+    setDraft((current) => goToStep(current, step));
   }
 
   function chooseTopic(id) {
     if (locked) return;
     setError(''); setTransitionNotice('');
-    setDraft((current) => ({ ...current, currentTopicId: id, step: 1 }));
+    setDraft((current) => goToStep({ ...current, currentTopicId: id }, 1));
   }
 
   function toggleCategory(id) {
@@ -119,7 +179,8 @@ export default function QuickSetupScreen({ navigation, houseId, setPages, setHou
 
   function addCategory() {
     const title = customTitle.trim();
-    if (!title) return;
+    // Et tryk på knappen uden tekst åbner tastaturet i stedet for at gøre ingenting.
+    if (!title) { customInput.current?.focus?.(); return; }
     if (draft.selectedIds.length >= MAX_CATEGORIES) { setError(`Vælg højst ${MAX_CATEGORIES} kategorier.`); return; }
     const existing = draft.categories.find((category) => category.title.toLocaleLowerCase('da') === title.toLocaleLowerCase('da'));
     if (existing) {
@@ -129,6 +190,7 @@ export default function QuickSetupScreen({ navigation, houseId, setPages, setHou
       setDraft({ ...draft, categories: [...draft.categories, category], selectedIds: [...draft.selectedIds, category.id], sessions: { ...draft.sessions, [category.id]: makeSession(category) } });
     }
     setCustomTitle('');
+    Keyboard.dismiss();
   }
 
   // Tekst og tale bruger præcis samme afsendelse, også ved gentagelse efter netværksfejl.
@@ -277,8 +339,37 @@ export default function QuickSetupScreen({ navigation, houseId, setPages, setHou
     finally { lock.current = false; if (mounted.current) setBusy(''); }
   }
 
+  async function restart() {
+    if (lock.current) return;
+    lock.current = true; setBusy('Henter en ny opsætning …');
+    await load(true);
+    lock.current = false;
+    if (mounted.current) { setRestartConfirm(false); setError(''); setBusy(''); }
+  }
+
+  function renderRestartConfirm() {
+    return (
+      <View style={S.setupNotice}>
+        <Text style={S.setupBody}>Vil du erstatte denne kladde med en ny opsætning? Din nuværende, publicerede guide bliver bevaret.</Text>
+        <View style={S.setupActionWrap}><SmallButton title="Behold kladden" onPress={() => setRestartConfirm(false)} disabled={locked} />
+          <SmallButton title="Erstat kladden" disabled={locked} onPress={restart} /></View>
+      </View>
+    );
+  }
+
+  // Ét kort i kategorivalget. Bruges både til kategorier og til wifi.
+  function renderOption(option, selected, onPress) {
+    return (
+      <Pressable key={option.id} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} accessibilityLabel={option.title}
+        disabled={locked} onPress={onPress} style={({ pressed }) => [S.setupCategory, selected && S.setupCategorySelected, pressed && S.setupPressed]}>
+        <Ionicons name={option.icon} size={26} color={S.colors.accent} /><Text style={S.setupCategoryText} numberOfLines={2}>{option.title}</Text>
+        <Ionicons name={selected ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={selected ? S.colors.accent : S.colors.border} />
+      </Pressable>
+    );
+  }
+
   function renderHouseFields() {
-    return HOUSE_FIELDS.map((key) => (
+    return HOUSE_FIELDS.filter((key) => hasWifi(draft) || !WIFI_FIELDS.includes(key)).map((key) => (
       <TextInputComponent key={key} label={FIELD_LABELS[key]} hint={key === 'name' ? 'Sommerhusets navn' : 'Valgfrit'}
         value={draft.houseInfo[key]} multiline={key === 'welcome'} maxLength={key === 'welcome' ? 4000 : 300}
         autoCapitalize={key.startsWith('wifi') ? 'none' : 'sentences'}
@@ -309,107 +400,197 @@ export default function QuickSetupScreen({ navigation, houseId, setPages, setHou
   const inputTooLong = session.input.length > MAX_ANSWER_LENGTH;
   const hasUnsent = topics.some((item) => draft.sessions[item.id].input.trim());
   const seconds = Math.floor((recorderState.durationMillis || 0) / 1000);
+  const started = setupStarted(draft);
+  const allRecommended = recommendedIds(draft).every((id) => draft.selectedIds.includes(id));
+  // Fejl og igangværende handling vises samme sted på startsiden og i trinnene.
+  const errorNotice = (error || loadError || saveError) ? <View style={S.setupError} accessibilityLiveRegion="polite">
+    <Text style={S.ownerError}>{error || loadError || `Kladden kunne ikke gemmes. ${saveError}`}</Text>
+    {saveStatus === 'error' && <SmallButton title="Gem kladde igen" disabled={locked} onPress={() => flush().catch(() => {})} />}
+  </View> : null;
+  const notices = <>
+    {errorNotice}
+    {!!busy && <View style={S.setupBusy} accessibilityLiveRegion="polite"><ActivityIndicator color={S.colors.accent} /><Text style={S.setupBody}>{busy}</Text></View>}
+  </>;
+
+  const furthest = furthestStep(draft);
+  const header = (
+    <View style={S.setupHeader}>
+      <View style={S.setupSteps}>
+        {SETUP_STEPS.map((label, index) => {
+          // Trin, udlejeren har været på før, kan vælges direkte – også fremad efter et hop tilbage.
+          const reached = index <= furthest;
+          const open = reached && (index === 0 || draft.selectedIds.length > 0);
+          return <View key={label} style={S.setupStatus}>
+            {wide && index > 0 && <View style={S.setupStepLine} />}
+            <Pressable accessibilityRole="button" accessibilityLabel={`Trin ${index + 1}: ${label}`} accessibilityState={{ selected: draft.step === index, disabled: locked || !open }}
+              disabled={locked || !open} onPress={() => changeStep(index)} style={[S.setupStep, draft.step === index && S.setupStepActive, width < 700 && draft.step !== index && S.setupStepCompact]}>
+              <View style={[S.setupStepDot, reached && S.setupStepDotReached]}>
+                {index !== draft.step && index < furthest ? <Ionicons name="checkmark" size={18} color={S.colors.surface} />
+                  : <Text style={[S.setupStepNumber, reached && S.setupStepNumberReached]}>{index + 1}</Text>}
+              </View>
+              {(width >= 700 || draft.step === index) && <Text style={[S.setupStepText, reached && S.setupStepTextReached]}>{label}</Text>}
+            </Pressable>
+          </View>;
+        })}
+      </View>
+      <View style={S.setupStatus} accessibilityLiveRegion="polite">
+        <Ionicons name={(SAVE_STATUS[saveStatus] || { icon: 'cloud-upload-outline' }).icon} size={20} color={S.colors.textMuted} />
+        <Text style={S.setupMuted}>{(SAVE_STATUS[saveStatus] || { text: 'Gemmer kladde …' }).text}</Text>
+      </View>
+    </View>
+  );
+
+  // Samtalen har sit eget layout: beskederne fylder skærmen, og skrivefeltet sidder fast i bunden.
+  if (!intro && draft.step === 1) {
+    const showChat = wide || chatView === 'chat';
+    const showDraft = wide || chatView === 'draft';
+    const turnsUsed = answers >= MAX_TURNS && editIndex === null;
+    return (
+      <KeyboardAvoidingView style={S.setupRoot} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
+        <View style={S.chatTop}>
+          {header}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={S.chatTopics}>
+            {topics.map((item) => <SmallButton compact key={item.id} title={item.title} icon={draft.sessions[item.id].complete ? 'checkmark-circle' : item.icon}
+              active={topic.id === item.id} disabled={locked} onPress={() => chooseTopic(item.id)} />)}
+          </ScrollView>
+          {!wide && <View style={S.chatTabs} accessibilityRole="tablist">
+            {[['chat', 'Samtale'], ['draft', 'Udkast til gæsten']].map(([id, label]) => <Pressable key={id} accessibilityRole="tab" accessibilityState={{ selected: chatView === id }}
+              onPress={() => setChatView(id)} style={[S.chatTab, chatView === id && S.chatTabActive]}>
+              <Text style={[S.chatTabText, chatView === id && S.chatTabTextActive]}>{label}</Text>
+            </Pressable>)}
+          </View>}
+        </View>
+
+        <View style={S.chatColumns}>
+          {showChat && <ScrollView ref={chatScroll} style={S.chatColumn} contentContainerStyle={S.chatContent} keyboardShouldPersistTaps="handled"
+            onContentSizeChange={() => chatScroll.current?.scrollToEnd({ animated: true })}>
+            <Text style={S.setupCaption}>Tale og svar behandles af OpenAI. Kun teksten gemmes i din kladde.</Text>
+            {!!transitionNotice && <View style={S.setupNotice} accessibilityLiveRegion="polite"><Text style={S.setupMuted}>{transitionNotice}</Text></View>}
+            {session.messages.map((message, index) => message.role === 'user' ? <View key={`${topic.id}-${index}`} style={S.chatRowUser}>
+              <View style={[S.chatBubble, S.chatBubbleUser]}><Text style={S.setupBody} selectable>{message.content}</Text></View>
+              <SmallButton compact title="Ret" icon="create-outline" disabled={locked} label={`Ret svar ${Math.ceil(index / 2)}`} onPress={() => changeSession({ input: message.content, editIndex: index })} />
+            </View> : <View key={`${topic.id}-${index}`} style={S.chatRow}>
+              <GuideAgentIcon />
+              <View style={S.chatBubble}><Text style={S.setupBody} selectable>{message.content}</Text></View>
+            </View>)}
+            {!!pendingMessage && <View style={S.chatRowUser}><View style={[S.chatBubble, S.chatBubbleUser]}><Text style={S.setupBody}>{pendingMessage}</Text></View></View>}
+            {!!busy && <View style={S.chatRow} accessibilityLiveRegion="polite">
+              <GuideAgentIcon />
+              <View style={[S.chatBubble, S.setupBusy]}><ActivityIndicator color={S.colors.accent} /><Text style={S.setupMuted}>{busy}</Text></View>
+            </View>}
+          </ScrollView>}
+          {showDraft && <ScrollView style={[S.chatColumn, wide && S.chatDraftWide]} contentContainerStyle={S.chatContent} keyboardShouldPersistTaps="handled">
+            <Text style={S.setupHeading}>Sådan ser gæsten det</Text>
+            <Text style={S.setupMuted}>Et udkast, du kan tilpasse. Det bliver først synligt, når du godkender hele guiden.</Text>
+            {topic.id === HOUSE_TOPIC_ID ? renderHouseFields() : <GuideBlocksEditor blocks={session.blocks} disabled={locked} onChange={(blocks) => changeBlocks(topic.id, blocks)} />}
+          </ScrollView>}
+        </View>
+
+        {showChat && <SafeAreaView edges={['bottom']} style={S.setupBottomBar}>
+          <View style={S.chatComposer}>
+            {errorNotice}
+            {editIndex !== null && <View style={S.setupNotice}><Text style={S.setupMuted}>Du retter et tidligere svar. Senere svar i dette emne erstattes, og forslaget skrives på ny.</Text><SmallButton compact title="Annuller rettelse" disabled={locked} onPress={() => changeSession({ input: '', editIndex: null })} /></View>}
+            {inputTooLong && <Text style={S.ownerError}>Dit svar er for langt. Del det op i svar på højst {MAX_ANSWER_LENGTH} tegn.</Text>}
+            {answers >= MAX_TURNS && <Text style={S.setupMuted}>Emnet er klar til gennemgang. Ret et tidligere svar, eller tilpas udkastet.</Text>}
+            {/* Genvejene skjules, mens man skriver eller indtaler, så skrivefeltet har pladsen. */}
+            {!keyboardOpen && !recording && <View style={S.chatPills}>
+              {failedRecording?.topicId === topic.id && <SmallButton compact title="Prøv talesvaret igen" icon="refresh-outline" disabled={locked} onPress={() => stopRecording(failedRecording.uri)} />}
+              {!session.complete && <SmallButton compact title="Spring over" label="Spring spørgsmål over" disabled={locked || !!session.input.trim()} onPress={() => sendAnswer({ skip: true })} />}
+              {!session.complete && answers > 0 && <SmallButton compact title="Afslut emnet" label="Afslut med mine svar" disabled={locked || !!session.input.trim()} onPress={() => sendAnswer({ finish: true })} />}
+              <SmallButton compact title="Næste emne" label="Spring resten af emnet over" icon="arrow-forward-outline" disabled={locked || !!session.input.trim() || editIndex !== null} onPress={nextTopic} />
+            </View>}
+            <View style={S.chatInputRow}>
+              <RoundButton label={recording ? `Stop ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : 'Indtal svar'} icon={recording ? 'stop' : 'mic-outline'}
+                filled={recording} disabled={!!busy || turnsUsed} onPress={recording ? () => stopRecording() : startRecording} />
+              {recording ? <View style={S.chatRecording} accessibilityLiveRegion="polite">
+                <View style={S.chatRecordingDot} /><Text style={S.setupBody}>Optager {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')} – tryk stop, når du er færdig</Text>
+              </View> : <TextInput style={S.chatInput} accessibilityLabel="Dit svar til assistenten" placeholder="Fortæl med dine egne ord …" placeholderTextColor={S.colors.textMuted}
+                value={session.input} onChangeText={(input) => changeSession({ input })} multiline editable={!locked} />}
+              <RoundButton label={editIndex !== null ? 'Gem rettelse' : 'Send svar'} icon={editIndex !== null ? 'checkmark' : 'arrow-up'} filled
+                disabled={locked || !session.input.trim() || inputTooLong || turnsUsed} onPress={() => sendAnswer()} />
+            </View>
+          </View>
+        </SafeAreaView>}
+        <StatusBar style="dark" />
+      </KeyboardAvoidingView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView style={S.setupRoot} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <ScrollView ref={outerScroll} keyboardShouldPersistTaps="handled" contentContainerStyle={S.setupScroll}>
-        <View style={S.setupShell}>
-          <View style={S.setupTopRow}>
-            <View style={S.setupGrow}>
-              <Text style={S.setupEyebrow}>DIN DIGITALE HUSGUIDE</Text>
-              <Text style={S.setupTitle}>Lad os sætte sommerhuset op</Text>
-              <Text style={S.setupMuted}>{saveStatus === 'saved' ? 'Kladde gemt — du kan fortsætte senere' : saveStatus === 'error' ? 'Kladden er ikke gemt' : 'Gemmer kladde …'}</Text>
+        <View ref={shell} style={S.setupShell}>
+          {intro ? <View style={S.setupIntro}>
+            <GuideAgentComponent stacked={!wide}
+              title={started ? 'Velkommen tilbage!' : AGENT_NAME ? `Hej! Jeg er ${AGENT_NAME}.` : 'Hej, og velkommen!'}
+              text={started ? `Din kladde er gemt, og du er nået til trin ${draft.step + 1}: ${SETUP_STEPS[draft.step]}. Vi fortsætter, hvor du slap.`
+                : 'Fortæl mig om sommerhuset med dine egne ord, så skriver jeg guiden til dine gæster. Sådan gør vi:'} />
+            <View style={S.setupIntroSteps}>
+              {SETUP_INTRO.map((item, index) => <View key={item.title} style={S.setupIntroStep}>
+                <View style={S.setupIntroStepHead}>
+                  <View style={S.setupIntroBadge}><Text style={S.setupIntroBadgeText}>{index + 1}</Text></View>
+                  <Ionicons name={item.icon} size={26} color={S.colors.accent} />
+                </View>
+                <Text style={S.setupIntroStepTitle}>{item.title}</Text>
+                <Text style={S.setupMuted}>{item.text}</Text>
+              </View>)}
             </View>
-            <SmallButton title="Gem og luk" icon="pause-outline" disabled={locked} onPress={() => navigation.goBack()} />
-          </View>
+            <View style={S.setupFacts}>
+              {SETUP_FACTS.map((fact) => <View key={fact.text} style={S.setupFact}>
+                <Ionicons name={fact.icon} size={20} color={S.colors.textMuted} /><Text style={S.setupMuted}>{fact.text}</Text>
+              </View>)}
+            </View>
+            {notices}
+            <View style={S.setupIntroActions}>
+              <ButtonComponent title={started ? 'Fortsæt hvor du slap' : 'Kom i gang'} type="primary" height={64} width={300} disabled={locked}
+                onPress={() => { setError(''); setRestartConfirm(false); setIntro(false); }} />
+              {started && (restartConfirm ? renderRestartConfirm() : <SmallButton title="Start forfra" disabled={locked} onPress={() => setRestartConfirm(true)} />)}
+            </View>
+          </View> : <>
+          {header}
 
-          <View style={S.setupSteps}>
-            {SETUP_STEPS.map((label, index) => <Pressable key={label} accessibilityRole="button" accessibilityState={{ selected: draft.step === index, disabled: locked || index > draft.step }}
-              disabled={locked || index > draft.step} onPress={() => changeStep(index)} style={[S.setupStep, draft.step === index && S.setupStepActive]}>
-              <Text style={S.setupStepNumber}>{index + 1}</Text><Text style={S.setupStepText}>{label}</Text>
-            </Pressable>)}
-          </View>
-
-          {(error || loadError || saveError) ? <View style={S.setupError} accessibilityLiveRegion="polite">
-            <Text style={S.ownerError}>{error || loadError || `Kladden kunne ikke gemmes. ${saveError}`}</Text>
-            {saveStatus === 'error' && <SmallButton title="Gem kladde igen" disabled={locked} onPress={() => flush().catch(() => {})} />}
-          </View> : null}
-
-          {!!busy && <View style={S.setupBusy} accessibilityLiveRegion="polite"><ActivityIndicator color={S.colors.accent} /><Text style={S.setupBody}>{busy}</Text></View>}
+          {notices}
           {!!transitionNotice && <View style={S.setupNotice} accessibilityLiveRegion="polite"><Text style={S.setupBody}>{transitionNotice}</Text></View>}
 
-          {draft.step === 0 && <View style={S.setupCard}>
-            <Text style={S.setupHeading}>Hvad skal gæsterne vide om?</Text>
-            <Text style={S.setupLead}>Vælg kategorierne til dit sommerhus. Vi begynder med husets navn, velkomst, wifi og kontakt og tager derefter én kategori ad gangen.</Text>
-            <View style={S.setupCategoryGrid}>
-              {draft.categories.map((category) => {
-                const selected = draft.selectedIds.includes(category.id);
-                return <Pressable key={category.id} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} accessibilityLabel={category.title}
-                  disabled={locked} onPress={() => toggleCategory(category.id)} style={({ pressed }) => [S.setupCategory, selected && S.setupCategorySelected, pressed && S.setupPressed]}>
-                  <Ionicons name={category.icon} size={27} color={S.colors.accent} /><Text style={S.setupCategoryText}>{category.title}</Text>
-                  <Ionicons name={selected ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={selected ? S.colors.accent : S.colors.border} />
-                </Pressable>;
-              })}
-            </View>
-            <View style={S.setupInline}>
-              <TextInput style={S.setupCustomInput} placeholder="Din egen kategori, fx pool eller cykler" placeholderTextColor={S.colors.textMuted}
-                accessibilityLabel="Navn på egen kategori" value={customTitle} onChangeText={setCustomTitle} maxLength={60} editable={!locked} onSubmitEditing={addCategory} />
-              <SmallButton title="Tilføj" icon="add-outline" disabled={locked || !customTitle.trim()} onPress={addCategory} />
-            </View>
-            <Text style={S.setupMuted}>{draft.selectedIds.length} kategorier valgt. Eksisterende sider uden for opsætningen bevares.</Text>
-            <View style={S.setupActions}><ButtonComponent title="Start samtalen" type="primary" height={60} width={240} disabled={locked || !draft.selectedIds.length}
-              onPress={() => { setDraft({ ...draft, step: 1, currentTopicId: HOUSE_TOPIC_ID }); setError(''); }} /></View>
-          </View>}
-
-          {draft.step === 1 && <View style={[S.setupColumns, !wide && S.setupColumnsStacked]}>
-            <View style={[S.setupSidebar, !wide && S.setupSidebarCompact]}>
-              <Text style={S.setupEyebrow}>DIN GENNEMGANG</Text>
-              <Text style={S.setupMuted}>{topics.filter((item) => draft.sessions[item.id].complete).length} af {topics.length} emner gennemgået</Text>
-              <View style={wide ? S.setupTopicList : S.setupTopicWrap}>
-                {topics.map((item) => <SmallButton key={item.id} title={item.title} icon={draft.sessions[item.id].complete ? 'checkmark-circle-outline' : item.icon}
-                  active={topic.id === item.id} disabled={locked} onPress={() => chooseTopic(item.id)} />)}
+          {draft.step === 0 && <>
+            {/* Hjælperen tilbyder selv at vælge; knappen er svaret på dens spørgsmål.
+                De to tekster er lige lange, så boblen ikke skifter højde, og figuren står stille ved tryk. */}
+            <GuideAgentComponent small title="Hvad skal gæsterne vide om?"
+              text={allRecommended ? 'Så har jeg valgt det, de fleste huse har. Ret gerne til.' : 'Vælg selv – eller skal jeg vælge det, de fleste huse har?'}>
+              <SmallButton compact title={allRecommended ? 'Fortryd' : 'Ja tak, vælg for mig'} label={allRecommended ? 'Fravælg de mest almindelige' : 'Vælg de mest almindelige'}
+                icon={allRecommended ? 'arrow-undo-outline' : 'sparkles-outline'} disabled={locked} onPress={() => { setError(''); setDraft((current) => toggleRecommended(current)); }} />
+            </GuideAgentComponent>
+            <View style={S.setupFixed} accessible accessibilityLabel={`Husinfo er altid med: ${HOUSE_INFO_TEXT}`}>
+              <Ionicons name="home-outline" size={26} color={S.colors.accent} />
+              <View style={S.setupFixedBody}>
+                <Text style={S.setupFixedTitle}>Husinfo</Text>
+                <Text style={S.setupMuted}>{HOUSE_INFO_TEXT}</Text>
               </View>
+              <Text style={S.setupFixedBadgeText}>Altid med</Text>
+              <Ionicons name="checkmark-circle" size={24} color={S.colors.accent} />
             </View>
-            <View style={S.setupChatColumn}>
-              <View style={S.setupCard}>
-                <Text style={S.setupHeading}>{topic.title}</Text>
-                <Text style={S.setupMuted}>Skriv og send, eller indtal og tryk stop. Talesvaret sendes automatisk til samtalen.</Text>
-                <ScrollView ref={chatScroll} style={S.setupChatHistory} nestedScrollEnabled keyboardShouldPersistTaps="handled"
-                  onContentSizeChange={() => chatScroll.current?.scrollToEnd({ animated: true })}>
-                  {session.messages.map((message, index) => <View key={`${topic.id}-${index}`} style={[S.setupBubble, message.role === 'user' && S.setupUserBubble]}>
-                    <Text style={S.setupBubbleLabel}>{message.role === 'user' ? 'DIG' : 'FERIEGUIDE ASSISTENT'}</Text>
-                    <Text style={S.setupBody} selectable>{message.content}</Text>
-                    {message.role === 'user' && <SmallButton title="Ret svar" disabled={locked} label={`Ret svar ${Math.ceil(index / 2)}`} onPress={() => changeSession({ input: message.content, editIndex: index })} />}
-                  </View>)}
-                  {!!pendingMessage && <View style={[S.setupBubble, S.setupUserBubble]}><Text style={S.setupBody}>{pendingMessage}</Text></View>}
-                </ScrollView>
-                {editIndex !== null && <View style={S.setupNotice}><Text style={S.setupMuted}>Du retter et tidligere svar. Senere svar i dette emne erstattes, og forslaget skrives på ny.</Text><SmallButton title="Annuller rettelse" disabled={locked} onPress={() => changeSession({ input: '', editIndex: null })} /></View>}
-                {inputTooLong && <Text style={S.ownerError}>Dit svar er for langt. Del det op i svar på højst {MAX_ANSWER_LENGTH} tegn.</Text>}
-                <TextInput style={S.setupComposer} accessibilityLabel="Dit svar til assistenten" placeholder="Fortæl med dine egne ord …" placeholderTextColor={S.colors.textMuted}
-                  value={session.input} onChangeText={(input) => changeSession({ input })} multiline editable={!locked} />
-                <View style={S.setupComposerActions}>
-                  <SmallButton title={recording ? `Stop ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : 'Indtal svar'} icon={recording ? 'stop-circle' : 'mic-outline'}
-                    active={recording} disabled={!!busy || (answers >= MAX_TURNS && editIndex === null)} onPress={recording ? () => stopRecording() : startRecording} />
-                  <ButtonComponent title={editIndex !== null ? 'Gem rettelse' : 'Send svar'} type="primary" height={60} width={180}
-                    disabled={locked || !session.input.trim() || inputTooLong || (answers >= MAX_TURNS && editIndex === null)} onPress={() => sendAnswer()} />
-                </View>
-                {failedRecording?.topicId === topic.id && <SmallButton title="Prøv talesvaret igen" icon="refresh-outline" disabled={locked} onPress={() => stopRecording(failedRecording.uri)} />}
-                <Text style={S.setupCaption}>Tale og svar behandles af OpenAI. Kun teksten gemmes i din kladde. Maks. 2 minutter pr. optagelse.</Text>
-                <View style={S.setupActionWrap}>
-                  {!session.complete && <SmallButton title="Spring spørgsmål over" disabled={locked || !!session.input.trim()} onPress={() => sendAnswer({ skip: true })} />}
-                  {!session.complete && answers > 0 && <SmallButton title="Afslut med mine svar" disabled={locked || !!session.input.trim()} onPress={() => sendAnswer({ finish: true })} />}
-                  <SmallButton title="Spring resten af emnet over"
-                    icon="arrow-forward-outline" disabled={locked || !!session.input.trim() || editIndex !== null} onPress={nextTopic} />
-                </View>
-                {answers >= MAX_TURNS && <Text style={S.setupMuted}>Emnet er klar til gennemgang. Ret et tidligere svar eller tilpas forslaget nedenfor.</Text>}
-              </View>
-              <View style={S.setupCard}>
-                <Text style={S.setupHeading}>Sådan ser gæsten det</Text>
-                <Text style={S.setupMuted}>Et udkast, du kan tilpasse. Det bliver først synligt, når du godkender hele guiden.</Text>
-                {topic.id === HOUSE_TOPIC_ID ? renderHouseFields() : <GuideBlocksEditor blocks={session.blocks} disabled={locked} onChange={(blocks) => changeBlocks(topic.id, blocks)} />}
-              </View>
+            <View style={S.setupGroups}>
+              {groupCategories(draft.categories).map((group) => <View key={group.title} style={[S.setupGroup, groupColumns]}>
+                <Text style={S.setupGroupTitle} accessibilityRole="header">{group.title}</Text>
+                {group.wifi && renderOption(WIFI_OPTION, hasWifi(draft), () => { setError(''); setDraft((current) => toggleWifi(current)); })}
+                {group.items.map((category) => renderOption(category, draft.selectedIds.includes(category.id), () => toggleCategory(category.id)))}
+                {group.custom && <>
+                  <Text style={S.setupMuted}>Mangler der noget? Skriv din egen kategori:</Text>
+                  <View style={S.setupAddRow}>
+                    <TextInput ref={customInput} style={S.setupCustomInput} placeholder="Fx pool" placeholderTextColor={S.colors.textMuted}
+                      accessibilityLabel="Navn på egen kategori" value={customTitle} onChangeText={setCustomTitle} maxLength={60} editable={!locked}
+                      returnKeyType="done" onSubmitEditing={addCategory}
+                      onFocus={() => { customFocused.current = true; if (keyboardOpen) showCustomInput(); }} onBlur={() => { customFocused.current = false; }} />
+                    <Pressable accessibilityRole="button" accessibilityLabel="Tilføj egen kategori" accessibilityState={{ disabled: locked }} disabled={locked}
+                      onPress={addCategory} style={({ pressed }) => [S.setupAddButton, pressed && S.setupAddButtonPressed, locked && S.setupDisabled]}>
+                      <Ionicons name="add" size={22} color={S.colors.surface} /><Text style={S.setupAddButtonText}>Tilføj</Text>
+                    </Pressable>
+                  </View>
+                </>}
+              </View>)}
             </View>
-          </View>}
+            <Text style={S.setupMuted}>Eksisterende sider uden for opsætningen bevares.</Text>
+          </>}
 
           {draft.step === 2 && <View>
             <Text style={S.setupHeading}>Gør guiden nem at genkende</Text>
@@ -440,14 +621,18 @@ export default function QuickSetupScreen({ navigation, houseId, setPages, setHou
           </View>}
 
           <View style={S.setupFooter}>
-            {!restartConfirm ? <SmallButton title="Start en ny opsætning" disabled={locked} onPress={() => setRestartConfirm(true)} /> : <View style={S.setupNotice}>
-              <Text style={S.setupBody}>Vil du erstatte denne kladde med en ny opsætning? Din nuværende, publicerede guide bliver bevaret.</Text>
-              <View style={S.setupActionWrap}><SmallButton title="Behold kladden" onPress={() => setRestartConfirm(false)} disabled={locked} />
-                <SmallButton title="Erstat kladden" disabled={locked} onPress={async () => { setBusy('Henter en ny opsætning …'); lock.current = true; await load(true); setRestartConfirm(false); setError(''); lock.current = false; setBusy(''); }} /></View>
-            </View>}
+            {restartConfirm ? renderRestartConfirm() : <SmallButton title="Start en ny opsætning" disabled={locked} onPress={() => setRestartConfirm(true)} />}
           </View>
+          </>}
         </View>
       </ScrollView>
+      {!intro && draft.step === 0 && !keyboardOpen && <SafeAreaView edges={['bottom']} style={S.setupBottomBar}>
+        <View style={S.setupBottomInner}>
+          <Text style={[S.setupBody, S.setupGrow]}>{draft.selectedIds.length} {draft.selectedIds.length === 1 ? 'kategori' : 'kategorier'} valgt</Text>
+          <ButtonComponent title="Start samtalen" type="primary" height={60} width={220} disabled={locked || !draft.selectedIds.length}
+            onPress={() => { setDraft(goToStep({ ...draft, currentTopicId: HOUSE_TOPIC_ID }, 1)); setError(''); }} />
+        </View>
+      </SafeAreaView>}
       <StatusBar style="dark" />
     </KeyboardAvoidingView>
   );

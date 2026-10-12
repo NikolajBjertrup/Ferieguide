@@ -1,4 +1,4 @@
-import { HOUSE_FIELDS, HOUSE_TOPIC, HOUSE_TOPIC_ID, SETUP_CATEGORIES } from '../data/quickSetup';
+import { HOUSE_FIELDS, HOUSE_TOPIC, HOUSE_TOPIC_ID, RECOMMENDED_IDS, SETUP_CATEGORIES, SETUP_GROUPS, WIFI_FIELDS } from '../data/quickSetup';
 
 export const MAX_CATEGORIES = 20;
 export const MAX_ANSWER_LENGTH = 4000;
@@ -10,7 +10,7 @@ export function pageSnapshot(page) {
     title: page.title, icon: page.icon, active: !!page.active,
     blocks: (page.blocks || []).map((block) => block.type === 'image'
       ? { id: block.id, type: 'image', url: block.url }
-      : { id: block.id, type: 'text', text: block.text }),
+      : { id: block.id, type: 'text', text: block.text, ...(block.title ? { title: block.title } : {}) }),
     order: page.order ?? 0, custom: !!page.custom,
   };
 }
@@ -20,20 +20,22 @@ export function createSetupDraft(house, pages, templateHouse, templatePages) {
   const houseInfo = Object.fromEntries(HOUSE_FIELDS.map((key) => [key,
     house[key] === templateHouse[key] && key !== 'name' ? '' : (house[key] || ''),
   ]));
-  const categories = pages.map((page) => ({
-    id: page.id, custom: !!page.custom,
-    ...(SETUP_CATEGORIES.find((category) => category.id === page.id) || {}),
-    title: page.title, icon: page.icon,
-  }));
+  const categories = pages.map((page) => {
+    const { oldTitle, ...standard } = SETUP_CATEGORIES.find((category) => category.id === page.id) || {};
+    // Har siden stadig et udgået standardnavn, bruges kategoriens nye navn og ikon.
+    const renamed = oldTitle !== undefined && page.title === oldTitle;
+    return { id: page.id, custom: !!page.custom, ...standard, title: renamed ? standard.title : page.title, icon: renamed ? standard.icon : page.icon };
+  });
   SETUP_CATEGORIES.forEach((category) => {
-    if (!categories.some((item) => item.id === category.id)) categories.push({ ...category, custom: true });
+    const { oldTitle, ...standard } = category;
+    if (!categories.some((item) => item.id === category.id)) categories.push({ ...standard, custom: true });
   });
   const sessions = {};
   categories.forEach((category) => {
     const page = pages.find((item) => item.id === category.id);
     const template = templatePages.find((item) => item.id === category.id);
-    const text = (page?.blocks || []).filter((block) => block.type === 'text').map((block) => block.text).join('\n\n');
-    const templateText = (template?.blocks || []).filter((block) => block.type === 'text').map((block) => block.text).join('\n\n');
+    const text = blocksText(page?.blocks || []);
+    const templateText = blocksText(template?.blocks || []);
     sessions[category.id] = makeSession(category, {
       basePage: pageSnapshot(page),
       guideText: text === templateText ? '' : text,
@@ -42,7 +44,7 @@ export function createSetupDraft(house, pages, templateHouse, templatePages) {
   });
   sessions[HOUSE_TOPIC_ID] = makeSession(HOUSE_TOPIC);
   return {
-    version: 1, step: 0, currentTopicId: HOUSE_TOPIC_ID,
+    version: 1, step: 0, currentTopicId: HOUSE_TOPIC_ID, wifi: true,
     newPageOrder: Math.max(-1, ...pages.map((page) => page.order ?? 0)) + 1,
     categories, selectedIds: pages.filter((page) => page.active && sessions[page.id].guideText).map((page) => page.id).slice(0, MAX_CATEGORIES),
     sessions, houseInfo, initialHouseInfo: { ...houseInfo },
@@ -64,10 +66,25 @@ export function splitGuideText(text) {
   return text.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
 }
 
+// Et afsnit fra AI'en starter med en kort overskrift på sin egen linje, fx "Gaskomfur".
+// Overskriften gemmes som blokkens `title`, så både udlejer og gæst kan se, hvad afsnittet handler om.
+export function splitTitle(part) {
+  const [first, ...rest] = part.split('\n');
+  const title = first.trim();
+  const text = rest.join('\n').trim();
+  return text && title.length <= 50 && !/[.!?:,;]$/.test(title) ? { title, text } : { text: part };
+}
+
+// Tekstblokkene som én tekst med overskrifterne på egen linje – samme form, som AI'en skriver og læser.
+export function blocksText(blocks) {
+  return blocks.filter((block) => block.type === 'text')
+    .map((block) => block.title?.trim() ? `${block.title.trim()}\n${block.text}` : block.text).join('\n\n');
+}
+
 export function withBlocks(session, blocks) {
   return {
     ...session, blocks,
-    guideText: blocks.filter((block) => block.type === 'text').map((block) => block.text).join('\n\n'),
+    guideText: blocksText(blocks),
     images: blocks.filter((block) => block.type === 'image'),
   };
 }
@@ -78,8 +95,8 @@ export function withGuideBlocks(session, text, topicId) {
   const blocks = [];
   let index = 0;
   const lastTextIndex = previous.reduce((last, block, i) => block.type === 'text' ? i : last, -1);
-  const unchanged = text === previous.filter((block) => block.type === 'text').map((block) => block.text).join('\n\n');
-  const nextText = (id) => ({ id: id || `setup-text-${topicId}-${index}`, type: 'text', text: paragraphs[index++] });
+  const unchanged = text === blocksText(previous);
+  const nextText = (id) => ({ id: id || `setup-text-${topicId}-${index}`, type: 'text', ...splitTitle(paragraphs[index++]) });
   if (lastTextIndex === -1) while (index < paragraphs.length) blocks.push(nextText());
   previous.forEach((block, i) => {
     if (block.type === 'image') {
@@ -87,7 +104,8 @@ export function withGuideBlocks(session, text, topicId) {
     } else if (unchanged) {
       // Del gamle lange tekstblokke uden at flytte billeder forbi deres oprindelige afsnit.
       splitGuideText(block.text).forEach((part, partIndex) => blocks.push({
-        id: partIndex === 0 ? block.id : `${block.id}-part-${partIndex}`, type: 'text', text: part,
+        id: partIndex === 0 ? block.id : `${block.id}-part-${partIndex}`, type: 'text',
+        ...(partIndex === 0 && block.title ? { title: block.title } : {}), text: part,
       }));
     } else {
       if (index < paragraphs.length) blocks.push(nextText(block.id));
@@ -117,15 +135,27 @@ export function advanceTopic(draft, topicId) {
   // Find næste ufærdige emne, også hvis udlejeren er hoppet rundt i emnelisten.
   const candidates = [...topics.slice(index + 1), ...topics.slice(0, index)];
   const next = candidates.find((topic) => !draft.sessions[topic.id].complete || draft.sessions[topic.id].input.trim());
-  return { ...draft, currentTopicId: next?.id || topicId, step: next ? 1 : 2 };
+  return goToStep({ ...draft, currentTopicId: next?.id || topicId }, next ? 1 : 2);
+}
+
+// Det længste trin, udlejeren har været på. Ældre kladder har kun `step`.
+export function furthestStep(draft) {
+  return Math.max(draft.step, Number.isInteger(draft.maxStep) ? draft.maxStep : 0);
+}
+
+// Skifter trin og husker, hvor langt udlejeren er nået, så trinviseren kan hoppe frem igen.
+export function goToStep(draft, step) {
+  return { ...draft, step, maxStep: Math.max(furthestStep(draft), step) };
 }
 
 export function setupTopics(draft) {
-  return [HOUSE_TOPIC, ...draft.categories.filter((category) => draft.selectedIds.includes(category.id))];
+  const { hintsNoWifi, ...house } = HOUSE_TOPIC;
+  return [hasWifi(draft) ? house : { ...house, hints: hintsNoWifi }, ...draft.categories.filter((category) => draft.selectedIds.includes(category.id))];
 }
 
 export function isSetupDraft(value) {
   return value?.version === 1 && [0, 1, 2, 3].includes(value.step) &&
+    (value.maxStep === undefined || [0, 1, 2, 3].includes(value.maxStep)) &&
     Number.isFinite(value.newPageOrder) && value.newPageOrder >= 0 &&
     Array.isArray(value.categories) && Array.isArray(value.selectedIds) &&
     value.categories.every((category) => category && typeof category.id === 'string' &&
@@ -141,10 +171,52 @@ export function isSetupDraft(value) {
         typeof session.guideText === 'string' && typeof session.input === 'string' && Array.isArray(session.images) &&
         session.images.every((image) => image?.type === 'image' && typeof image.id === 'string' && typeof image.url === 'string') &&
         (session.blocks === undefined || (Array.isArray(session.blocks) && session.blocks.every((block) =>
-          block && typeof block.id === 'string' && (block.type === 'text' ? typeof block.text === 'string' :
+          block && typeof block.id === 'string' && (block.type === 'text' ? typeof block.text === 'string' && ['undefined', 'string'].includes(typeof block.title) :
             block.type === 'image' && typeof block.url === 'string')) &&
           new Set(session.blocks.map((block) => block.id)).size === session.blocks.length));
     });
+}
+
+// Fordeler kategorierne på grupperne. Kategorier uden fast gruppe (ejerens egne) havner i den sidste.
+export function groupCategories(categories) {
+  const known = SETUP_GROUPS.flatMap((group) => group.ids);
+  return SETUP_GROUPS.map((group, index) => {
+    const last = index === SETUP_GROUPS.length - 1;
+    return {
+      title: group.title, custom: last, wifi: !!group.wifi,
+      items: [...group.ids.map((id) => categories.find((category) => category.id === id)).filter(Boolean),
+        ...(last ? categories.filter((category) => !known.includes(category.id)) : [])],
+    };
+  });
+}
+
+// Wifi er slået til, medmindre ejeren har fravalgt det (ældre kladder har ikke feltet).
+export function hasWifi(draft) {
+  return draft.wifi !== false;
+}
+
+// Uden wifi tømmes wifi-felterne, så forsiden ikke viser dem. Slås wifi til igen, hentes de oprindelige værdier.
+export function toggleWifi(draft) {
+  const wifi = !hasWifi(draft);
+  const source = wifi ? (draft.initialHouseInfo || draft.baseHouse) : {};
+  return { ...draft, wifi, houseInfo: { ...draft.houseInfo, ...Object.fromEntries(WIFI_FIELDS.map((key) => [key, source[key] || ''])) } };
+}
+
+// Hjælperens knap: vælg de kategorier, næsten alle sommerhuse har – eller fravælg dem igen, hvis alle er valgt.
+export function recommendedIds(draft) {
+  return RECOMMENDED_IDS.filter((id) => draft.categories.some((category) => category.id === id));
+}
+
+export function toggleRecommended(draft) {
+  const ids = recommendedIds(draft);
+  const allSelected = ids.every((id) => draft.selectedIds.includes(id));
+  return { ...draft, selectedIds: allSelected ? draft.selectedIds.filter((id) => !ids.includes(id))
+    : [...draft.selectedIds, ...ids.filter((id) => !draft.selectedIds.includes(id))].slice(0, MAX_CATEGORIES) };
+}
+
+// Er ejeren begyndt på samtalen? Bruges til at byde velkommen tilbage på startsiden.
+export function setupStarted(draft) {
+  return draft.step > 0 || Object.values(draft.sessions).some((session) => session.messages.length > 1 || !!session.input.trim());
 }
 
 export function setupPages(draft) {
@@ -186,5 +258,6 @@ export function applyAssistantResult(draft, topicId, messages, result) {
 // Gem nøjagtigt den blokrækkefølge, ejeren har valgt, også billeder midt i teksten.
 export function buildPageBlocks(session, id) {
   const current = Array.isArray(session.blocks) ? session : withGuideBlocks(session, session.guideText, id);
-  return current.blocks.filter((block) => block.type === 'image' || block.text.trim()).map((block) => ({ ...block }));
+  return current.blocks.filter((block) => block.type === 'image' || block.text.trim() || block.title?.trim())
+    .map(({ title, ...block }) => title?.trim() ? { ...block, title: title.trim() } : block);
 }

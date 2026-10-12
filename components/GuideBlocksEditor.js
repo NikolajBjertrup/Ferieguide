@@ -1,4 +1,4 @@
-import { View, Text, Pressable, Image } from 'react-native';
+import { View, Text, TextInput, Pressable, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import TextInputComponent from './TextInputComponent';
 import ButtonComponent from './ButtonComponent';
@@ -16,13 +16,17 @@ export default function GuideBlocksEditor({ blocks, onChange, disabled = false }
   }
   let textNumber = 0;
   return <View style={S.setupBlockEditor}>
-    <Text style={S.setupMuted}>Hvert afsnit er en tekstblok. Brug pilene til at placere billeder mellem afsnittene.</Text>
+    <Text style={S.setupMuted}>Hvert afsnit har en overskrift, som gæsten også ser. Brug pilene til at placere billeder mellem afsnittene.</Text>
     {blocks.map((block, index) => {
       const label = block.type === 'text' ? `Tekst ${++textNumber}` : `Billede ${index + 1}`;
       return <View key={block.id} style={S.blockRow}>
         <View style={S.blockContent}>
-          {block.type === 'text' ? <TextInputComponent label={label} value={block.text} hint="Skriv et afsnit til gæsterne" multiline editable={!disabled} maxLength={16000}
-            onChangeText={(text) => onChange(blocks.map((item) => item.id === block.id ? { ...item, text } : item))} /> :
+          {block.type === 'text' ? <>
+            <TextInput accessibilityLabel={`Overskrift til ${label.toLowerCase()}`} style={S.blockTitleInput} value={block.title || ''} editable={!disabled} maxLength={60}
+              placeholder="Overskrift, fx Gaskomfur" placeholderTextColor={S.colors.textMuted}
+              onChangeText={(title) => onChange(blocks.map((item) => item.id === block.id ? { ...item, title } : item))} />
+            <TextInputComponent accessibilityLabel={label} value={block.text} hint="Skriv et afsnit til gæsterne" multiline editable={!disabled} maxLength={16000}
+            onChangeText={(text) => onChange(blocks.map((item) => item.id === block.id ? { ...item, text } : item))} /></> :
             <Image source={{ uri: block.url }} style={S.blockImage} accessibilityLabel={label} />}
         </View>
         <View style={S.blockControls}>

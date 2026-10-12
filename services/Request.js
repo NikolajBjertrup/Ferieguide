@@ -126,6 +126,9 @@ Bevar nøjagtige navne, tal, telefonnumre, tider, placeringer, wifi-navne og adg
 Fjern fyldord og gentagelser. Skriv ét selvstændigt afsnit pr. apparat, instruktion eller emne.
 Adskil ALTID afsnittene med en tom linje. Hvert afsnit bliver sin egen flytbare tekstblok,
 så ejeren kan placere billeder mellem instruktionerne. Brug ikke Markdown.
+Start HVERT afsnit med en kort overskrift på sin egen linje: 1-4 ord uden tegnsætning, der siger,
+hvad afsnittet handler om, fx "Gaskomfur" eller "Varmt vand". Selve teksten følger på næste linje.
+Behold overskrifter fra den nuværende guidetekst, medmindre afsnittets emne ændrer sig.
 Opfind ALDRIG udstyr, afstande, husregler, kontaktoplysninger eller sikkerhedsanvisninger.
 Eksempler og dine egne spørgsmål er ikke fakta. Usikre oplysninger udelades og afklares i et spørgsmål.
 Udlejerens rettelser har forrang; fjern forældede oplysninger fra udkastet.

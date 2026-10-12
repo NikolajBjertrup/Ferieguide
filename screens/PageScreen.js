@@ -26,9 +26,10 @@ export default function PageScreen({ navigation, route, pages }) {
             Vi bruger map() og ikke FlatList, fordi vi allerede er inde i en ScrollView. */}
         {page.blocks.map((block) =>
           block.type === 'text' ? (
-            <Text key={block.id} style={GlobalStyle.pageBody}>
-              {block.text}
-            </Text>
+            <View key={block.id} style={GlobalStyle.pageBlock}>
+              {!!block.title && <Text style={GlobalStyle.pageBlockTitle}>{block.title}</Text>}
+              <Text style={GlobalStyle.pageBody}>{block.text}</Text>
+            </View>
           ) : (
             <Image
               key={block.id}

@@ -19,6 +19,11 @@ test('nye kladder fjerner gamle demooplysninger og bevarer ejerens egne fakta', 
   assert.equal(draft.sessions.cykler.guideText, 'To cykler står i skuret.');
   assert.equal(draft.sessions.cykler.initialGuideText, 'To cykler står i skuret.');
   assert.deepEqual(json(draft.selectedIds), ['cykler']);
+  // Hjælperens knap lægger de almindelige kategorier oven i ejerens egne valg og kan fjerne dem igen.
+  const chosen = logic.toggleRecommended(draft);
+  assert.deepEqual(json(chosen.selectedIds), ['cykler', 'koekken', 'bad', 'ankomst', 'udtjekning', 'affald']);
+  assert.deepEqual(json(logic.toggleRecommended(chosen).selectedIds), ['cykler']);
+  assert.equal(logic.setupStarted(draft), false);
   assert.ok(logic.isSetupDraft(draft));
 });
 
@@ -198,3 +203,42 @@ test('ugyldige blokke og gentagne blok-id’er afvises ved genoptagelse', () => 
 });
 
 // Multipart- og filtypetests findes i audioUpload.test.cjs og bruger Expo-koden direkte.
+
+test('kategorierne vises i faste grupper, og ejerens egne havner i den sidste', () => {
+  const draft = makeDraft();
+  draft.categories.push({ id: 'custom-1', title: 'Pool', icon: 'book-outline', custom: true });
+  const groups = logic.groupCategories(draft.categories);
+  assert.deepEqual(json(groups.map((group) => group.title)), ['I huset', 'Praktisk', 'Ude og omkring', 'Særligt for dit hus']);
+  assert.deepEqual(json(groups[3].items.map((category) => category.id)), ['saerligt', 'custom-1']);
+  assert.equal(groups.flatMap((group) => group.items).length, draft.categories.length);
+  assert.deepEqual(json(groups.map((group) => group.custom)), [false, false, false, true]);
+});
+
+test('den gamle Kontakt-side får nyt navn i opsætningen, men ejerens egne navne bevares', () => {
+  const page = { id: 'kontakt', icon: 'call-outline', order: 0, active: true, blocks: [] };
+  const renamed = logic.createSetupDraft(emptyInfo, [{ ...page, title: 'Kontakt' }], HOUSE, PAGES).categories.find((category) => category.id === 'kontakt');
+  assert.equal(renamed.title, 'Hjælp ved problemer');
+  assert.equal(renamed.icon, 'help-buoy-outline');
+  assert.equal(renamed.oldTitle, undefined);
+  const kept = logic.createSetupDraft(emptyInfo, [{ ...page, title: 'Ring til Anna' }], HOUSE, PAGES).categories.find((category) => category.id === 'kontakt');
+  assert.equal(kept.title, 'Ring til Anna');
+  assert.equal(kept.icon, 'call-outline');
+  assert.ok(!logic.makeSession(renamed).messages[0].content.includes('Hvem skal'));
+});
+
+test('AI-afsnit med overskrift bliver til blokke med titel, og titlen følger med frem og tilbage', () => {
+  const session = logic.withGuideBlocks({ images: [] }, 'Gaskomfur\nDrej knappen og tryk tænd.\n\nHusk at lukke for gassen. Den står under vasken.', 'koekken');
+  assert.equal(JSON.stringify(session.blocks.map(({ title, text }) => ({ title, text }))), JSON.stringify([
+    { title: 'Gaskomfur', text: 'Drej knappen og tryk tænd.' },
+    { title: undefined, text: 'Husk at lukke for gassen. Den står under vasken.' },
+  ]));
+  assert.equal(session.guideText, 'Gaskomfur\nDrej knappen og tryk tænd.\n\nHusk at lukke for gassen. Den står under vasken.');
+  // Uændret tekst bevarer blokke, id'er og titler.
+  assert.equal(JSON.stringify(logic.withGuideBlocks(session, session.guideText, 'koekken').blocks), JSON.stringify(session.blocks));
+  // Udlejerens rettede overskrift bevares, og en tom overskrift gemmes ikke.
+  const edited = logic.withBlocks(session, [{ ...session.blocks[0], title: ' Komfur ' }, { ...session.blocks[1], title: '' }]);
+  assert.equal(JSON.stringify(logic.buildPageBlocks(edited, 'koekken').map(({ title, text }) => ({ title, text }))), JSON.stringify([
+    { title: 'Komfur', text: 'Drej knappen og tryk tænd.' },
+    { title: undefined, text: 'Husk at lukke for gassen. Den står under vasken.' },
+  ]));
+});

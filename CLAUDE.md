@@ -138,8 +138,10 @@ components/                 ← genbrugelige komponenter
   TextInputComponent.js
   IconPickerComponent.js    ← gitter til at vælge en kategoris ikon
   GuideBlocksEditor.js      ← tekst-/billedblokke med flytning og sletning i quick-setup
+  GuideAgentComponent.js    ← appens hjælper: hus-figur tegnet i kode + taleboble; `GuideAgentIcon` er den lille udgave ved beskeder i samtalen
 data/
   const.js                  ← HOUSE og PAGES (skabelon for nye huse) + ICONS (ikonvalg)
+  quickSetup.js             ← quick-setups kategorier, grupper (SETUP_GROUPS), trin, startsidens tekster, RECOMMENDED_IDS og AGENT_NAME
 database/
   database.js               ← AL Firebase-kode (som i kursets 06_FirebaseLogin)
 firebase/
@@ -189,8 +191,11 @@ houses/{houseId}/pages/{id}    { title, icon, active, blocks, order, custom }
 - `ownerId` på huset = udlejerens Firebase-uid. Det er det, der adskiller brugerne.
 - Sidens `id` (fx `koekken`) er dokument-id og bruges som `keyExtractor`.
 - `order` styrer rækkefølgen (Firestore sorterer ellers efter id).
+- Wifi er en del af husinfo, ikke en side. I quick-setup kan det fravælges (`quickSetupDraft.wifi: false`);
+  så tømmes wifi-felterne, og forsiden viser kun wifi og kontakt, når de er udfyldt.
 - `blocks` er sidens indhold i rækkefølge:
-  - tekstblok: `{ id, type: 'text', text }`
+  - tekstblok: `{ id, type: 'text', text, title? }` – `title` er en valgfri overskrift, som gæsten ser over afsnittet.
+    I quick-setup skriver AI'en den som afsnittets første linje (`splitTitle`/`blocksText` i `services/quickSetup.js`)
   - billedblok: `{ id, type: 'image', url }` (download-URL fra Storage)
   - blok-id laves med `newBlockId()`
 - Kategorier: standardkategorierne har faste id'er (fx `koekken`) og faste ikoner
@@ -241,16 +246,16 @@ Root er en Stack Navigator i `App.js` med **tre grene**, som vælges ud fra stat
 | `LoginScreen.js` | – | Email + kodeord. Knap til "Opret bruger" |
 | `RegisterScreen.js` | – | Invitationskode (kan komme fra link via `route.params.code`), email, kodeord |
 | `HousesScreen.js` | Udlejer | **FlatList** over egne huse, opret nyt hus, log ud. Bruges som `ChooseHouse` og `Houses` ("Skift hus") |
-| `HomeScreen.js` | Gæst | Baggrund (`coverUrl` eller standard), husnavn, velkomst, wifi, kontakt. "Se guiden". Tandhjul → `OwnerLogin` |
+| `HomeScreen.js` | Gæst | Baggrund (`coverUrl` eller standard), husnavn, velkomst, wifi og kontakt (kun når de er udfyldt). "Se guiden". Tandhjul → `OwnerLogin` |
 | `GuideScreen.js` | Gæst | **FlatList** i 2 kolonner med aktive sider. Tryk → `PageScreen` |
-| `PageScreen.js` | Gæst | Titel og sidens blokke (tekst og billeder) i udlejerens rækkefølge |
+| `PageScreen.js` | Gæst | Titel og sidens blokke (tekst med valgfri overskrift, billeder) i udlejerens rækkefølge |
 | `OwnerLoginScreen.js` | Udlejer | Kodeord til kontoen (re-autentificering) → `OwnerPages` |
 | `OwnerPagesScreen.js` | Udlejer | Fælles AI quick-setup, husinfo-række, **FlatList** over sider med `Switch` og slet (kun egne), "Ny kategori", "Gæstevisning", "Skift hus", "Log ud" |
 | `NewPageScreen.js` | Udlejer | Navn + ikon til en ny kategori → åbner `EditPage` |
 | `EditHouseScreen.js` | Udlejer | Husinfo: baggrund (kamera/galleri/standard), navn, velkomst, wifi, kontakt |
 | `EditPageScreen.js` | Udlejer | Titel, ikon (kun egne kategorier) + blok-editor: + Tekst, + Kamera, + Galleri, ▲ ▼ ✕. "Gem" |
 | `CameraScreen.js` | Udlejer | Tag billede, upload, send `newImageUrl` tilbage til `returnTo` (`EditPage` eller `EditHouse`) |
-| `QuickSetupScreen.js` | Udlejer | Kategorivalg → AI-samtale om husinfo og kategorier (tekst/tale) → billeder → redigering og samlet godkendelse |
+| `QuickSetupScreen.js` | Udlejer | Startside med hjælperen og de fire trin ("Kom i gang" / "Fortsæt hvor du slap") → kategorivalg i grupper med fast bundlinje (hjælperens knap vælger de almindelige) → AI-samtale som chat med hjælperen (emner øverst, skrivefelt fast i bunden, udkast i fane på telefon / kolonne på iPad; tekst/tale) → billeder → redigering og samlet godkendelse. Topbjælken har "Tilbage" (ét trin) og et kryds, der gemmer kladden og lukker. Tallene i trinviseren hopper direkte til trin, man har været på før (`quickSetupDraft.maxStep`) |
 
 Deep link: `linking` i `App.js` mapper `register?code=KODE` til `Register`
 (scheme `ferieguide` i `app.json`). Linket virker kun, når ingen er logget ind

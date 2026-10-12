@@ -8,9 +8,11 @@ const { HOUSE, PAGES } = baseLoad('data/const');
 const info = { name: 'Testhus', welcome: '', wifiName: '', wifiPassword: '', ownerName: '', ownerPhone: '' };
 const nextTick = () => new Promise((resolve) => setImmediate(resolve));
 
-function screenHarness({ failAI = false, microphone = true, finishTopic = false, failTranscript = false, failAudioReset = false } = {}) {
+function screenHarness({ failAI = false, microphone = true, finishTopic = false, failTranscript = false, failAudioReset = false, intro = false, started = false } = {}) {
   const driver = hookHarness();
   let draft = logic.createSetupDraft(info, [], HOUSE, PAGES);
+  // Flow-testene starter efter startsiden, medmindre testen beder om andet.
+  if (started) draft = { ...draft, selectedIds: ['bad'], step: 1 };
   let published = null;
   let answerCalls = [];
   const completed = { current: false };
@@ -29,8 +31,9 @@ function screenHarness({ failAI = false, microphone = true, finishTopic = false,
   const native = Object.fromEntries(['Text', 'View', 'ScrollView', 'Pressable', 'ActivityIndicator', 'TextInput', 'Image', 'KeyboardAvoidingView'].map((type) => [type, type]));
   const load = createLoader({
     react: driver.hooks, 'react/jsx-runtime': { jsx: node, jsxs: node, Fragment: 'Fragment' },
-    'react-native': { ...native, Platform: { OS: 'ios' }, useWindowDimensions: () => ({ width: 1194 }), AppState: { addEventListener: () => ({ remove() {} }) } },
-    'expo-status-bar': { StatusBar: 'StatusBar' }, '@expo/vector-icons': { Ionicons: 'Ionicons' },
+    'react-native': { ...native, Platform: { OS: 'ios' }, AccessibilityInfo: { isReduceMotionEnabled: async () => true }, Keyboard: { addListener: () => ({ remove() {} }), dismiss() {} },
+      Animated: { View: 'View', Value: class {}, timing: () => ({}), delay: () => ({}), sequence: () => ({}), loop: () => ({ start() {}, stop() {} }) }, useWindowDimensions: () => ({ width: 1194 }), AppState: { addEventListener: () => ({ remove() {} }) } },
+    'expo-status-bar': { StatusBar: 'StatusBar' }, 'react-native-safe-area-context': { SafeAreaView: 'View' }, '@expo/vector-icons': { Ionicons: 'Ionicons' },
     'expo-audio': { useAudioRecorder: () => ({ prepareToRecordAsync: async () => {}, record() {}, stop: async () => {}, uri: 'file:///recording.m4a' }), useAudioRecorderState: () => ({}), setAudioModeAsync: async (mode) => { if (failAudioReset && !mode.allowsRecording) throw new Error('Lydsession fejlede'); }, AudioModule: { requestRecordingPermissionsAsync: async () => ({ granted: microphone }) }, RecordingPresets: { HIGH_QUALITY: {} } },
     'expo-image-picker': { launchImageLibraryAsync: async () => ({ canceled: false, assets: [{ uri: 'file:///photo.jpg', fileSize: 1024 }] }) },
     'services/Request.js': api, 'styles/GlobalStyle.js': { GlobalStyle: { colors: {} } },
@@ -38,7 +41,9 @@ function screenHarness({ failAI = false, microphone = true, finishTopic = false,
     'database/database.js': { newBlockId: () => `id-${++serial}`, uploadImage: async (houseId, pageId) => { uploads.push({ houseId, pageId }); return 'https://example.test/photo.jpg'; }, publishQuickSetup: async (_houseId, value) => { published = value; return { house: value.houseInfo, pages: logic.setupPages(value).filter((page) => page.publishable) }; } },
   });
   const Screen = load('screens/QuickSetupScreen').default;
-  const navigation = { addListener: () => () => {}, setOptions() {}, goBack() {} };
+  let header = {};
+  let closed = 0;
+  const navigation = { addListener: () => () => {}, setOptions(options) { header = options; }, goBack() { closed++; } };
   function expand(element) {
     if (!element || typeof element !== 'object') return element;
     if (Array.isArray(element)) return element.flatMap(expand);
@@ -49,6 +54,7 @@ function screenHarness({ failAI = false, microphone = true, finishTopic = false,
   const all = (element) => typeof element === 'object' && element ? [element, ...(element.children || []).flatMap(all)] : [];
   const render = () => expand(driver.render(() => Screen({ navigation, houseId: 'test', setHouse() {}, setPages() {} })));
   const find = (type, label) => all(render()).find((element) => element.type === type && (element.props.accessibilityLabel === label || text(element) === label));
+  if (!intro) find('Pressable', 'Kom i gang').props.onPress();
   return {
     draft: () => draft, setDraft, published: () => published, calls: () => answerCalls, uploads, render,
     failAI(value) { failAI = value; },
@@ -57,6 +63,9 @@ function screenHarness({ failAI = false, microphone = true, finishTopic = false,
     type(label, value) { const input = find('TextInput', label); assert.ok(input, `Felt findes: ${label}`); input.props.onChangeText(value); },
     disabled(label) { return !!find('Pressable', label)?.props.disabled; },
     text: () => text(render()),
+    // Knapperne i topbjælken sættes med navigation.setOptions og findes ikke i selve skærmen.
+    header(side) { render(); return header[side]?.(); },
+    closed: () => closed,
   };
 }
 
@@ -210,4 +219,95 @@ test('et billede kan flyttes mellem to AI-tekstblokke og rækkefølgen godkendes
   assert.deepEqual(Array.from(h.draft().sessions.bad.blocks, (block) => block.type), ['text', 'image', 'text']);
   await h.press('Gennemse guiden'); await h.press('Godkend og opret guide');
   assert.deepEqual(Array.from(logic.buildPageBlocks(h.published().sessions.bad, 'bad'), (block) => block.type), ['text', 'image', 'text']);
+});
+
+test('startsiden forklarer forløbet, og hjælperens knap vælger de almindelige kategorier', async () => {
+  const h = screenHarness({ intro: true });
+  assert.ok(h.text().includes('Hej, og velkommen!'));
+  for (const title of ['Vælg kategorier', 'Fortæl', 'Tilføj billeder', 'Godkend']) assert.ok(h.text().includes(title), title);
+  assert.ok(!h.text().includes('Hvad skal gæsterne vide om?'));
+  await h.press('Kom i gang');
+  assert.ok(h.text().includes('Hvad skal gæsterne vide om?'));
+  assert.ok(h.disabled('Start samtalen'));
+  await h.press('Sauna'); await h.press('Vælg de mest almindelige');
+  assert.deepEqual(Array.from(h.draft().selectedIds), ['sauna', 'koekken', 'bad', 'ankomst', 'udtjekning', 'affald']);
+  assert.ok(!h.disabled('Start samtalen'));
+  await h.press('Fravælg de mest almindelige');
+  assert.deepEqual(Array.from(h.draft().selectedIds), ['sauna']);
+});
+
+test('en påbegyndt kladde bydes velkommen tilbage og fortsætter på samme trin', async () => {
+  const h = screenHarness({ intro: true, started: true });
+  assert.ok(h.text().includes('Velkommen tilbage!'));
+  assert.ok(h.text().includes('trin 2: Samtale'));
+  await h.press('Start forfra');
+  assert.ok(h.text().includes('Vil du erstatte denne kladde'));
+  await h.press('Behold kladden');
+  await h.press('Fortsæt hvor du slap');
+  assert.equal(h.draft().step, 1);
+  assert.ok(h.text().includes('Dit svar til assistenten') || h.text().includes('Om sommerhuset'));
+});
+
+test('en egen kategori kan tilføjes med knappen og bliver valgt med det samme', async () => {
+  const h = screenHarness();
+  await h.press('Tilføj egen kategori');
+  assert.equal(h.draft().categories.some((category) => category.custom && category.title === ''), false);
+  h.type('Navn på egen kategori', '  Pool ');
+  await h.press('Tilføj egen kategori');
+  const pool = h.draft().categories.find((category) => category.title === 'Pool');
+  assert.ok(pool);
+  assert.deepEqual(Array.from(h.draft().selectedIds), [pool.id]);
+  assert.ok(!h.disabled('Start samtalen'));
+});
+
+test('topbjælkens tilbageknap går ét trin tilbage, og luk findes på alle trin', async () => {
+  const h = screenHarness({ intro: true });
+  assert.equal(h.header('headerLeft'), null);
+  assert.equal(h.header('headerRight').props.accessibilityLabel, 'Luk');
+  await h.press('Kom i gang'); await h.press('Bad'); await h.press('Start samtalen');
+  assert.equal(h.draft().step, 1);
+  assert.ok(!h.text().includes('Gem og luk'));
+  h.header('headerLeft').props.onPress();
+  assert.equal(h.draft().step, 0);
+  assert.deepEqual(Array.from(h.draft().selectedIds), ['bad']);
+  h.header('headerLeft').props.onPress();
+  assert.ok(h.text().includes('Hej, og velkommen!') || h.text().includes('Velkommen tilbage!'));
+  assert.equal(h.header('headerLeft'), null);
+  h.header('headerRight').props.onPress();
+  assert.equal(h.closed(), 1);
+});
+
+test('wifi kan fravælges, så der hverken spørges om det eller vises wifi-felter', async () => {
+  const h = screenHarness();
+  h.setDraft((draft) => ({ ...draft, houseInfo: { ...draft.houseInfo, wifiName: 'Klitten' }, initialHouseInfo: { ...draft.initialHouseInfo, wifiName: 'Klitten' } }));
+  assert.ok(logic.setupTopics(h.draft())[0].hints.includes('wifi-navn'));
+  await h.press('Wifi');
+  assert.equal(h.draft().wifi, false);
+  assert.equal(h.draft().houseInfo.wifiName, '');
+  assert.ok(logic.setupTopics(h.draft())[0].hints.includes('ikke wifi'));
+  assert.equal(logic.setupTopics(h.draft())[0].hintsNoWifi, undefined);
+  await h.press('Bad'); await h.press('Start samtalen');
+  assert.ok(!h.text().includes('Wifi-navn'));
+  h.setDraft((draft) => ({ ...draft, step: 0 }));
+  await h.press('Wifi');
+  assert.equal(h.draft().houseInfo.wifiName, 'Klitten');
+  assert.ok(logic.isSetupDraft(h.draft()));
+});
+
+test('trinviseren kan hoppe frem til trin, man har været på før', async () => {
+  const h = screenHarness();
+  assert.ok(h.disabled('Trin 2: Samtale'));
+  await h.press('Bad'); await h.press('Start samtalen');
+  assert.ok(h.disabled('Trin 3: Billeder'));
+  h.setDraft((draft) => logic.goToStep(draft, 2));
+  await h.press('Trin 1: Kategorier');
+  assert.equal(h.draft().step, 0);
+  assert.equal(h.draft().maxStep, 2);
+  assert.ok(h.disabled('Trin 4: Godkend'));
+  await h.press('Trin 3: Billeder');
+  assert.equal(h.draft().step, 2);
+  assert.ok(logic.isSetupDraft(h.draft()));
+  // Uden valgte kategorier kan man ikke hoppe videre fra kategorisiden.
+  await h.press('Trin 1: Kategorier'); await h.press('Bad');
+  assert.ok(h.disabled('Trin 3: Billeder'));
 });

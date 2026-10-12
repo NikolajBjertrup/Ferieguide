@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Text, View, ScrollView, Pressable, Image, ActivityIndicator } from 'react-native';
+import { Text, View, TextInput, ScrollView, Pressable, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -69,6 +69,11 @@ export default function EditPageScreen({ navigation, route, houseId, pages, setP
     setBlocks(blocks.map((b) => (b.id === blockId ? { ...b, text: text } : b)));
   }
 
+  // Afsnittets overskrift, som gæsten ser over teksten (valgfri)
+  function changeBlockTitle(blockId, blockTitle) {
+    setBlocks(blocks.map((b) => (b.id === blockId ? { ...b, title: blockTitle } : b)));
+  }
+
   // Flytter blokken på plads `index` én plads op (-1) eller ned (+1)
   function moveBlock(index, direction) {
     const newIndex = index + direction;
@@ -133,13 +138,24 @@ export default function EditPageScreen({ navigation, route, houseId, pages, setP
             <View key={block.id} style={GlobalStyle.blockRow}>
               <View style={GlobalStyle.blockContent}>
                 {block.type === 'text' ? (
+                  <>
+                  <TextInput
+                    accessibilityLabel="Overskrift"
+                    style={GlobalStyle.blockTitleInput}
+                    placeholder="Overskrift (valgfri)"
+                    placeholderTextColor={GlobalStyle.colors.textMuted}
+                    value={block.title || ''}
+                    onChangeText={(text) => changeBlockTitle(block.id, text)}
+                    maxLength={60}
+                  />
                   <TextInputComponent
-                    label="Tekst"
+                    accessibilityLabel="Tekst"
                     hint="Det gæsten skal vide"
                     value={block.text}
                     onChangeText={(text) => changeText(block.id, text)}
                     multiline={true}
                   />
+                  </>
                 ) : (
                   <Image
                     source={{ uri: block.url }}

@@ -1,5 +1,6 @@
 // Vis de rigtige skærmkomponenter med fiktive data, uden login eller API-kald.
 // node tests/previewQuickSetup.cjs → http://127.0.0.1:8096/?step=0&width=1194
+// Startsiden vises som standard. Tilføj &intro=0 for at se trinnene, og &new=1 for en helt ny opsætning.
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -20,16 +21,19 @@ http.createServer((request, response) => {
   const params = new URL(request.url, 'http://127.0.0.1').searchParams;
   const step = Math.min(3, Math.max(0, Number(params.get('step')) || 0));
   const width = Number(params.get('width')) || 1194;
+  const showIntro = params.get('intro') !== '0';
+  const fresh = params.get('new') === '1';
   let draft;
   const load = createLoader({
-    react: React,
+    // Skærmens eneste useState(true) er startsiden; her kan den slås fra uden at trykke.
+    react: { ...React, useState: (initial) => React.useState(initial === true ? showIntro : initial) },
     'react-native': { ...RN, useWindowDimensions: () => ({ width, height: 834, scale: 1, fontScale: 1 }),
       // React Native Web indlæser ellers billedet i en effekt, som ikke kører ved statisk rendering.
       Image: ({ source, style, accessibilityLabel }) => React.createElement('img', {
         src: source.uri, alt: accessibilityLabel, style: { ...RN.StyleSheet.flatten(style), objectFit: 'cover' },
       }),
     },
-    'expo-status-bar': { StatusBar: () => null },
+    'expo-status-bar': { StatusBar: () => null }, 'react-native-safe-area-context': { SafeAreaView: RN.View },
     '@expo/vector-icons': { Ionicons: ({ name, size, color }) => React.createElement(RN.Text, { style: { fontFamily: 'Ionicons', fontSize: size, color } }, String.fromCodePoint(glyphs[name] || glyphs['help-outline'])) },
     'expo-audio': { useAudioRecorder: () => ({}), useAudioRecorderState: () => ({}), RecordingPresets: { HIGH_QUALITY: {} } },
     'expo-image-picker': {}, 'services/Request.js': {}, 'database/database.js': {},
@@ -46,6 +50,7 @@ http.createServer((request, response) => {
   const kitchenBlocks = draft.sessions.koekken.blocks;
   draft.sessions.koekken = withBlocks(draft.sessions.koekken, [kitchenBlocks[0], { id: 'preview-photo', type: 'image', url: '/house.png' }, kitchenBlocks[1]]);
   draft.sessions.bad = withGuideBlocks(draft.sessions.bad, 'Åbn vinduet efter bad, så rummet bliver luftet ud.', 'bad');
+  if (fresh) draft = { ...createSetupDraft({ name: 'Sommerhuset ved klitterne' }, [], HOUSE, PAGES), step };
   const Screen = load('screens/QuickSetupScreen').default;
   RN.AppRegistry.registerComponent('SetupPreview', () => () => React.createElement(Screen, { navigation: {}, houseId: 'preview', setPages: () => {}, setHouse: () => {} }));
   const { element, getStyleElement } = RN.AppRegistry.getApplication('SetupPreview');

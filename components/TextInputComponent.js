@@ -15,12 +15,13 @@ export default function TextInputComponent({
   multiline,
   autoCapitalize,
   editable = true,
+  accessibilityLabel,
 }) {
   return (
     <View style={GlobalStyle.inputContainer}>
-      <Text style={GlobalStyle.inpLabel}>{label}</Text>
+      {!!label && <Text style={GlobalStyle.inpLabel}>{label}</Text>}
       <TextInput
-        accessibilityLabel={label}
+        accessibilityLabel={accessibilityLabel || label}
         editable={editable}
         style={[GlobalStyle.textInput, multiline && GlobalStyle.textInputMultiline]}
         placeholder={hint}
