@@ -29,8 +29,8 @@ export default function HousesScreen({ navigation, houseId, selectHouse }) {
 
   function choose(id) {
     selectHouse(id);
-    // Kom vi hertil fra udlejertilstand ("Skift hus"), så hop tilbage til forsiden.
-    // Første gang (intet hus valgt) skifter App.js selv skærmene ud.
+    // Valg af et nyt hus genstarter navigationen på udlejerskærmen i App.js.
+    // Ved valg af samme hus går vi tilbage til udlejerskærmen.
     if (navigation.canGoBack()) {
       navigation.popToTop();
     }

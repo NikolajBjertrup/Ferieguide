@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { onAuthStateChanged } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,9 +19,10 @@ import RegisterScreen from './screens/RegisterScreen';
 import HousesScreen from './screens/HousesScreen';
 import EditHouseScreen from './screens/EditHouseScreen';
 import NewPageScreen from './screens/NewPageScreen';
+import ButtonComponent from './components/ButtonComponent';
 
 import { GlobalStyle } from './styles/GlobalStyle';
-import { auth, getHouse, getPages } from './database/database';
+import { auth, getHouse, getHouses, getPages } from './database/database';
 
 const Stack = createNativeStackNavigator();
 
@@ -52,46 +53,71 @@ export default function App() {
   const [pages, setPages] = useState([]);
   // Husets info (navn, velkomsttekst, wifi ...), som vises på forsiden
   const [house, setHouse] = useState(null);
+  const [ownerMode, setOwnerMode] = useState(true);
+  const [houseLoadError, setHouseLoadError] = useState(false);
+  const [houseLoadAttempt, setHouseLoadAttempt] = useState(0);
+  const explicitLogin = useRef(false);
 
   // onAuthStateChanged kalder vores funktion, hver gang nogen logger ind eller ud
   // (og én gang ved start). Funktionen den returnerer, stopper lytningen igen.
   useEffect(() => {
+    let active = true;
+    let sequence = 0;
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      const request = ++sequence;
       // Enheden husker, hvilket hus den viste for denne udlejer sidst.
       // Nøglen indeholder bruger-id'et, så to udlejere på samme enhed ikke blandes sammen.
       let savedHouseId = null;
+      let savedMode = null;
+      let restoreFailed = false;
       if (currentUser) {
-        savedHouseId = await AsyncStorage.getItem('selectedHouse_' + currentUser.uid);
+        try {
+          [savedHouseId, savedMode] = await Promise.all([
+            AsyncStorage.getItem('selectedHouse_' + currentUser.uid),
+            AsyncStorage.getItem('displayMode_' + currentUser.uid),
+          ]);
+          if (!savedHouseId) {
+            const houses = await getHouses();
+            if (houses.length === 1) {
+              savedHouseId = houses[0].id;
+              await AsyncStorage.setItem('selectedHouse_' + currentUser.uid, savedHouseId);
+            }
+          }
+        } catch { restoreFailed = true; }
       }
+      if (!active || request !== sequence) return;
+      // Fejl i den gemte tilstand må aldrig give en gæst redigeringsadgang.
+      const isOwner = explicitLogin.current || (!restoreFailed && savedMode !== 'guest');
+      if (currentUser && explicitLogin.current) AsyncStorage.setItem('displayMode_' + currentUser.uid, 'owner').catch(() => {});
+      explicitLogin.current = false;
+      setOwnerMode(isOwner);
       setHouseId(savedHouseId);
       setUser(currentUser);
       setAuthChecked(true);
     });
-    return unsubscribe;
+    return () => { active = false; unsubscribe(); };
   }, []);
 
   // Henter husets info og sider, hver gang enheden skifter hus.
   // [houseId] betyder: kør igen, når houseId ændrer sig.
   useEffect(() => {
+    setHouseLoadError(false);
     if (!houseId) {
       return;
     }
     // Ryd det gamle hus, mens det nye hentes
     setHouse(null);
     setPages([]);
-    getHouse(houseId)
-      .then((houseFromDb) => setHouse(houseFromDb))
-      .catch((error) => {
-        // Huset er slettet, eller det tilhører ikke denne udlejer (reglerne afviser det).
-        // Så glemmer enheden valget, og udlejeren sendes til "Vælg hus".
-        console.log('Kunne ikke hente huset:', error.message);
-        AsyncStorage.removeItem('selectedHouse_' + auth.currentUser.uid);
-        setHouseId(null);
+    let active = true;
+    Promise.all([getHouse(houseId), getPages(houseId)])
+      .then(([houseFromDb, pagesFromDb]) => { if (active) { setHouse(houseFromDb); setPages(pagesFromDb); } })
+      .catch(() => {
+        if (!active) return;
+        // Bevar husvalg og gæstelås ved netværksfejl; lad brugeren prøve igen.
+        setHouseLoadError(true);
       });
-    getPages(houseId)
-      .then((pagesFromDb) => setPages(pagesFromDb))
-      .catch((error) => console.log('Firestore-fejl:', error.message));
-  }, [houseId]);
+    return () => { active = false; };
+  }, [houseId, user?.uid, houseLoadAttempt]);
 
   // Kun under udvikling: skriv et eksempel på et invitationslink i terminalen,
   // så det kan sendes til telefonen og testes. __DEV__ er false i en færdig app.
@@ -104,11 +130,32 @@ export default function App() {
   // Vælg hus på denne enhed. Sendes som prop til HousesScreen.
   function selectHouse(id) {
     setHouseId(id);
-    AsyncStorage.setItem('selectedHouse_' + user.uid, id);
+    setOwnerMode(true);
+    AsyncStorage.setItem('selectedHouse_' + user.uid, id).catch(() => {});
   }
 
+  async function showGuestMode() {
+    await AsyncStorage.setItem('displayMode_' + user.uid, 'guest');
+    setOwnerMode(false);
+  }
+
+  async function unlockOwnerMode() {
+    await AsyncStorage.setItem('displayMode_' + user.uid, 'owner');
+    setOwnerMode(true);
+  }
+
+  if (authChecked && user && houseId && houseLoadError) return (
+    <View style={GlobalStyle.authLoading}>
+      <Text style={GlobalStyle.ownerError}>Guiden kunne ikke hentes. Kontrollér forbindelsen og prøv igen.</Text>
+      <ButtonComponent title="Prøv igen" type="primary" width={240} height={60}
+        onPress={() => { setHouseLoadError(false); setHouseLoadAttempt((attempt) => attempt + 1); }} />
+      <ButtonComponent title={ownerMode ? 'Vælg et andet hus' : 'Udlejer-login'} type="secondary" width={240} height={60}
+        onPress={() => setHouseId(null)} />
+    </View>
+  );
+
   // Mens Firebase tjekker login, viser vi bare en spinner
-  if (!authChecked) {
+  if (!authChecked || (user && houseId && house?.id !== houseId)) {
     return (
       <View style={GlobalStyle.authLoading}>
         <ActivityIndicator size="large" color={GlobalStyle.colors.accent} />
@@ -119,6 +166,7 @@ export default function App() {
   return (
     <NavigationContainer linking={linking}>
       <Stack.Navigator
+        key={`${user?.uid || 'login'}:${houseId || 'choose'}:${ownerMode ? 'owner' : 'guest'}`}
         screenOptions={{
           headerStyle: GlobalStyle.header,
           headerTintColor: GlobalStyle.colors.accent,
@@ -131,9 +179,15 @@ export default function App() {
             Når user skifter, bytter React Navigation selv skærmene ud. */}
         {user === null ? (
           <>
-            <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Login" options={{ headerShown: false }}>
+              {(props) => <LoginScreen {...props} onLoginStart={() => { explicitLogin.current = true; }} />}
+            </Stack.Screen>
             <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Opret bruger' }} />
           </>
+        ) : houseId === null && !ownerMode ? (
+          <Stack.Screen name="OwnerLogin" options={{ title: 'Udlejer-login' }}>
+            {(props) => <OwnerLoginScreen {...props} onUnlock={unlockOwnerMode} />}
+          </Stack.Screen>
         ) : houseId === null ? (
           // Logget ind, men enheden har ikke valgt hus endnu
           <Stack.Screen name="ChooseHouse" options={{ title: 'Vælg hus' }}>
@@ -141,25 +195,12 @@ export default function App() {
           </Stack.Screen>
         ) : (
           <>
-            <Stack.Screen name="Home" options={{ headerShown: false }}>
-              {(props) => <HomeScreen {...props} house={house} />}
+            {ownerMode ? <>
+            <Stack.Screen name="OwnerPages" options={{ title: 'Rediger guiden' }}>
+              {(props) => <OwnerPagesScreen {...props} houseId={houseId} pages={pages} setPages={setPages} onShowGuest={showGuestMode} />}
             </Stack.Screen>
-
-            {/* Render-funktion i stedet for component={...}, så vi kan sende pages/setPages med som props */}
-            <Stack.Screen name="Guide" options={{ title: 'Guiden' }}>
-              {(props) => <GuideScreen {...props} pages={pages} />}
-            </Stack.Screen>
-
-            {/* Tom titel: sidens egen titel vises stort i indholdet, og iOS viser "Guiden" ved tilbage-pilen */}
-            <Stack.Screen name="Page" options={{ title: '' }}>
-              {(props) => <PageScreen {...props} pages={pages} />}
-            </Stack.Screen>
-            <Stack.Screen name="OwnerLogin" component={OwnerLoginScreen} options={{ title: 'Udlejer-login' }} />
             <Stack.Screen name="EditHouse" options={{ title: 'Husinfo' }}>
               {(props) => <EditHouseScreen {...props} house={house} setHouse={setHouse} />}
-            </Stack.Screen>
-            <Stack.Screen name="OwnerPages" options={{ title: 'Rediger guiden' }}>
-              {(props) => <OwnerPagesScreen {...props} houseId={houseId} pages={pages} setPages={setPages} />}
             </Stack.Screen>
             <Stack.Screen name="NewPage" options={{ title: 'Ny kategori' }}>
               {(props) => <NewPageScreen {...props} houseId={houseId} pages={pages} setPages={setPages} />}
@@ -167,8 +208,8 @@ export default function App() {
             <Stack.Screen name="EditPage" options={{ title: 'Rediger side' }}>
               {(props) => <EditPageScreen {...props} houseId={houseId} pages={pages} setPages={setPages} />}
             </Stack.Screen>
-            <Stack.Screen name="QuickSetup" options={{ title: 'Lynopsætning' }}>
-              {(props) => <QuickSetupScreen {...props} houseId={houseId} pages={pages} setPages={setPages} />}
+            <Stack.Screen name="QuickSetup" options={{ title: 'AI quick-setup', gestureEnabled: false }}>
+              {(props) => <QuickSetupScreen {...props} houseId={houseId} setPages={setPages} setHouse={setHouse} />}
             </Stack.Screen>
             {/* Kameraet har ikke brug for pages – det sender bare billedlinket tilbage til EditPage */}
             <Stack.Screen name="Camera" options={{ title: 'Tag billede' }}>
@@ -178,6 +219,20 @@ export default function App() {
                 så React Navigation ved, at det er to forskellige steder i appen. */}
             <Stack.Screen name="Houses" options={{ title: 'Skift hus' }}>
               {(props) => <HousesScreen {...props} houseId={houseId} selectHouse={selectHouse} />}
+            </Stack.Screen>
+            </> : <>
+              <Stack.Screen name="Home" options={{ headerShown: false }}>
+                {(props) => <HomeScreen {...props} house={house} />}
+              </Stack.Screen>
+              <Stack.Screen name="OwnerLogin" options={{ title: 'Udlejer-login' }}>
+                {(props) => <OwnerLoginScreen {...props} onUnlock={unlockOwnerMode} />}
+              </Stack.Screen>
+            </>}
+            <Stack.Screen name="Guide" options={{ title: 'Guiden' }}>
+              {(props) => <GuideScreen {...props} pages={pages} />}
+            </Stack.Screen>
+            <Stack.Screen name="Page" options={{ title: '' }}>
+              {(props) => <PageScreen {...props} pages={pages} />}
             </Stack.Screen>
           </>
         )}

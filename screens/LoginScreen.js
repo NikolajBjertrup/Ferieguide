@@ -10,9 +10,9 @@ import { GlobalStyle } from '../styles/GlobalStyle';
 import { auth, authErrorMessage } from '../database/database';
 
 // Første skærm på en ny enhed: udlejeren logger ind med sin konto.
-// Når login lykkes, opdager App.js det (onAuthStateChanged) og viser selve guiden,
+// Når login lykkes, opdager App.js det (onAuthStateChanged) og viser udlejerskærmen,
 // så vi behøver ikke selv at navigere videre herfra.
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen({ navigation, onLoginStart }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,6 +22,7 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     setError('');
     try {
+      onLoginStart?.();
       await signInWithEmailAndPassword(auth, email.trim(), password);
     } catch (e) {
       setError(authErrorMessage(e));

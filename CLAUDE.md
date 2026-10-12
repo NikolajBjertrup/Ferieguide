@@ -24,9 +24,11 @@ Appen er et abonnementsprodukt med flere udlejere:
 
 Roller på enheden:
 
-- **Gæst** (standard, når enheden er logget ind og har valgt hus): kan kun læse.
-- **Udlejer**: låses op ved at skrive **kodeordet til kontoen** (re-autentificering
-  i Firebase). Kan redigere sider, husinfo, skifte hus og logge ud.
+- **Udlejer** er første skærm efter login med email og kodeord. Kan redigere sider,
+  husinfo, skifte hus og logge ud. Ét hus vælges automatisk; flere kræver husvalg.
+- **Gæst** vælges med **Gæstevisning** og kan kun læse. Tilstanden huskes ved genstart.
+  Redigering låses op via tandhjulet og **kodeordet til kontoen** (re-autentificering
+  i Firebase). Redigeringsskærmene findes ikke i gæstens navigationsstak.
 
 Selve låsningen af iPad'en til én app sker via iOS Vejledt adgang (Guided
 Access), ikke i vores kode.
@@ -92,7 +94,7 @@ firebase                            ^12.19.0  Auth, Firestore, Storage
 @react-native-async-storage/async-storage  ^2.2.0  husker login + valgt hus
 expo-camera                         ~57.0.6   tag billede (kursets 07_kamera)
 expo-image-picker                   ~57.0.20  vælg billede fra galleri
-expo-audio                          ~57.0.5   talebesked i lynopsætning
+expo-audio                          ~57.0.5   talesvar i AI quick-setup
 expo-linking                        ~57.0.11  deep link til "Opret bruger"
 react-native-dotenv                 ^3.4.11   OPENAI_API_KEY fra .env
 babel-preset-expo                   ~57.0.0   (devDependency)
@@ -135,6 +137,7 @@ components/                 ← genbrugelige komponenter
   ButtonComponent.js
   TextInputComponent.js
   IconPickerComponent.js    ← gitter til at vælge en kategoris ikon
+  GuideBlocksEditor.js      ← tekst-/billedblokke med flytning og sletning i quick-setup
 data/
   const.js                  ← HOUSE og PAGES (skabelon for nye huse) + ICONS (ikonvalg)
 database/
@@ -143,7 +146,10 @@ firebase/
   firestore.rules           ← sikkerhedsregler, kopieres ind i Console
   storage.rules
 services/
-  Request.js                ← OpenAI: Whisper + omskrivning til guidetekst
+  Request.js                ← OpenAI: Whisper + struktureret opsætningssamtale
+  quickSetup.js             ← kategorier, kladder, AI-svar og publiceringsblokke
+  useQuickSetupDraft.js      ← genoptagelse og sekventiel kladdegemning
+tests/                      ← flow-/fejltests med mocks, statisk designkontrol
 screens/                    ← én fil pr. skærm
 styles/
   GlobalStyle.js            ← AL styling
@@ -174,7 +180,8 @@ styles/
 invites/{KODE}                 { used: false }  → { used: true, usedBy: uid }
 users/{uid}                    { email, inviteCode, createdAt }
 houses/{houseId}               { ownerId, name, welcome, wifiName, wifiPassword,
-                                 ownerName, ownerPhone, coverUrl, createdAt }
+                                 ownerName, ownerPhone, coverUrl, createdAt,
+                                 quickSetupDraft? }
 houses/{houseId}/pages/{id}    { title, icon, active, blocks, order, custom }
 ```
 
@@ -202,8 +209,11 @@ Firestore gemmer kun linket. Slettede billedblokke fjernes ikke fra Storage.
 
 Bruges kun som **skabelon**, når et nyt hus oprettes (`createHouse`):
 
-- `HOUSE`: standardtekster til husinfo + `cover` (lokalt forsidebillede).
-- `PAGES`: 8 prædefinerede sider, 5 med `active: true`, hver med én tekstblok.
+- `HOUSE`: historiske eksempeltekster + `cover` (lokalt forsidebillede).
+- `PAGES`: 8 prædefinerede kategorier med historiske eksempeltekster.
+  Nye huse oprettes med tom husinfo (bortset fra ejerens valgte navn) og tomme,
+  skjulte kategorier. Eksempelteksterne bruges til at genkende og udelade demoindhold
+  i quick-setup for ældre huse, aldrig som AI-fakta.
   Sider har intet fast topbillede – vil udlejeren have et billede øverst, lægger
   de en billedblok og flytter den op med pilene.
 
@@ -211,6 +221,8 @@ Bruges kun som **skabelon**, når et nyt hus oprettes (`createHouse`):
 
 - Firebase-login (via `getReactNativePersistence`)
 - Valgt hus: nøglen `selectedHouse_<uid>`
+- Visning: `displayMode_<uid>` er `owner` eller `guest`. Et nyt login åbner altid
+  udlejertilstand; genstart bevarer gæstevisning. Hentefejl låser ikke gæstetilstand op.
 
 ---
 
@@ -220,7 +232,9 @@ Root er en Stack Navigator i `App.js` med **tre grene**, som vælges ud fra stat
 
 1. `user === null` → `Login`, `Register`
 2. logget ind, `houseId === null` → `ChooseHouse` (HousesScreen)
-3. logget ind med hus → alle øvrige skærme
+3. logget ind med hus → enten udlejerskærme (først `OwnerPages`) eller gæsteskærme
+   (først `Home`, kun `OwnerLogin`, `Guide` og `Page`). Skift nulstiller stakken.
+   En gæst uden gyldigt husvalg skal låse op før husvælgeren kan åbnes.
 
 | Fil | Rolle | Indhold |
 |---|---|---|
@@ -231,12 +245,12 @@ Root er en Stack Navigator i `App.js` med **tre grene**, som vælges ud fra stat
 | `GuideScreen.js` | Gæst | **FlatList** i 2 kolonner med aktive sider. Tryk → `PageScreen` |
 | `PageScreen.js` | Gæst | Titel og sidens blokke (tekst og billeder) i udlejerens rækkefølge |
 | `OwnerLoginScreen.js` | Udlejer | Kodeord til kontoen (re-autentificering) → `OwnerPages` |
-| `OwnerPagesScreen.js` | Udlejer | Husinfo-række, **FlatList** over alle sider med `Switch`, mikrofon og slet (kun egne), "Ny kategori", "Skift hus", "Log ud" |
+| `OwnerPagesScreen.js` | Udlejer | Fælles AI quick-setup, husinfo-række, **FlatList** over sider med `Switch` og slet (kun egne), "Ny kategori", "Gæstevisning", "Skift hus", "Log ud" |
 | `NewPageScreen.js` | Udlejer | Navn + ikon til en ny kategori → åbner `EditPage` |
 | `EditHouseScreen.js` | Udlejer | Husinfo: baggrund (kamera/galleri/standard), navn, velkomst, wifi, kontakt |
 | `EditPageScreen.js` | Udlejer | Titel, ikon (kun egne kategorier) + blok-editor: + Tekst, + Kamera, + Galleri, ▲ ▼ ✕. "Gem" |
 | `CameraScreen.js` | Udlejer | Tag billede, upload, send `newImageUrl` tilbage til `returnTo` (`EditPage` eller `EditHouse`) |
-| `QuickSetupScreen.js` | Udlejer | Talebesked → Whisper → forslag, der erstatter første tekstblok |
+| `QuickSetupScreen.js` | Udlejer | Kategorivalg → AI-samtale om husinfo og kategorier (tekst/tale) → billeder → redigering og samlet godkendelse |
 
 Deep link: `linking` i `App.js` mapper `register?code=KODE` til `Register`
 (scheme `ferieguide` i `app.json`). Linket virker kun, når ingen er logget ind
@@ -247,7 +261,7 @@ Navigation-params: send kun id'er (`pageId`) og små værdier (`newImageUrl`,
 
 ### State
 
-`App.js` holder `user`, `houseId`, `house` og `pages` og sender dem ned som
+`App.js` holder `user`, `houseId`, `house`, `pages` og `ownerMode` og sender dem ned som
 props via render-funktioner på `Stack.Screen`:
 
 ```js
@@ -256,8 +270,38 @@ props via render-funktioner på `Stack.Screen`:
 </Stack.Screen>
 ```
 
-Ændringer skrives først i state (så UI'et er hurtigt) og derefter til Firestore
-med `updatePage` / `updateHouse`. Ingen Redux, ingen Context.
+De almindelige editorer skriver først i state og derefter til Firestore med
+`updatePage` / `updateHouse`. Quick-setup gemmer en separat `quickSetupDraft` på huset
+med de eksisterende ejerregler; ingen nye regler kræves. Kladden indeholder
+kategorivalg, samtaler, input, tekstforslag, husinfo og billedlinks, aldrig lydfiler.
+Hvert emne har `blocks` i samme format som den manuelle editor; `guideText` og `images`
+afledes herfra. AI-afsnit opdeles ved tomme linjer. Billeder kan flyttes mellem
+tekstblokke, og den valgte rækkefølge bevares ved publicering. Gamle kladder uden
+`blocks` migreres ved indlæsning uden at miste svar eller billeder.
+Ved godkendelse skriver `publishQuickSetup` husinfo og valgte sider i én transaktion,
+fjerner kladden og opdaterer først derefter global state. Sider uden for opsætningen
+bevares; tomme kategorier springes over. Ændringer fra andre enheder opdages ved
+sammenligning med kladdens udgangspunkt. Ingen Redux, ingen Context.
+
+Quick-setup: højst 20 valgte kategorier, 4.000 tegn pr. svar og 12 svar pr. emne;
+taleoptagelser stopper efter 2 minutter. Stop transskriberer og sender automatisk
+svaret til chatten. Ved transskriptionsfejl kan samme optagelse forsøges igen;
+ved efterfølgende AI-fejl bevares teksten i input. Færdige emner skifter automatisk
+til næste ufærdige emne; sidste emne åbner billedtrinnet.
+Ejeren kan genoptage, springe over og rette
+tidligere svar. Rettelser erstatter de efterfølgende svar i samme emne. Kun ét aktivt
+setup pr. hus ad gangen. Kladden kræver netværk; **Kladde gemt** bekræfter gemning.
+`npm test` tester flow, transskriptionshåndtering, fejl, genoptagelse og transaktioner
+med mocks. `tests/liveSpeech.cjs` kan teste en lokal lydfil gennem den rigtige
+OpenAI-integration. Mikrofonoptagelse og Firebase skal også prøves i Expo Go på enheden.
+
+Lydupload i Expo 57: global `fetch` bruger Expo og afviser React Natives gamle
+`FormData.append('file', { uri, name, type })`. `Request.js` læser derfor den lokale
+lydfil med indbygget `XMLHttpRequest` (`responseType: 'blob'`) og tilføjer Blob +
+filnavn til FormData. Filindlæsning har timeout/afbrydelse; native blobs frigives
+efter upload uden at slette optagelsen. Ingen ekstra pakker eller global fetch-ændring.
+`audioUpload.test.cjs` og `liveSpeech.cjs` bruger den installerede Expo-versions
+FormData-patch og multipart-kode direkte, så test ikke skjuler formatfejl.
 
 ---
 
@@ -331,7 +375,7 @@ Efter installation af nye pakker eller ændringer i `app.json`: genstart Expo he
 - [ ] `app.json`: `ios.bundleIdentifier`, `ios.config.usesNonExemptEncryption: false`,
       evt. `orientation: "landscape"`
 - [ ] `eas.json` med production-profil og `autoIncrement`
-- [ ] `babel.config.js`: dotenv-stien skal være `.env`, ikke `../.env`
+- [x] `babel.config.js`: dotenv-stien er `.env` i projektets rod
 - [ ] OpenAI-nøglen som EAS-miljøvariabel (`.env` kommer ikke med op til EAS)
 - [ ] Build (`eas build`) + upload (`eas submit`) + intern TestFlight-gruppe
 - [ ] Separat Apple-ID til sommerhus-iPad'en, automatiske opdateringer fra

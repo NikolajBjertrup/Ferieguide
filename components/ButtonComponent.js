@@ -2,9 +2,12 @@ import { Text, Pressable } from 'react-native';
 
 import { GlobalStyle } from '../styles/GlobalStyle';
 
-export default function ButtonComponent({title, onPress, width, height, type}) {
+export default function ButtonComponent({title, onPress, width, height, type, disabled = false}) {
   return (
     <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        disabled={disabled}
         // Conditional styling - vi kigger på type og pressed for at ændre styling og farver
         style={({ pressed }) => [
           {
@@ -20,6 +23,7 @@ export default function ButtonComponent({title, onPress, width, height, type}) {
             height: height,
           },
           type === 'primary' ? GlobalStyle.primaryBtn : GlobalStyle.secondaryBtn, // Conditional styling
+          disabled && GlobalStyle.setupDisabled,
         ]}
         onPress={onPress}
       >

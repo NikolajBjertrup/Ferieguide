@@ -22,14 +22,19 @@ https://youtube.com/shorts/8t2mC9-cTaE?feature=share
 - Opret bruger med en **invitationskode**, som man modtager ved køb af abonnement
   (koden kan komme i et link, der åbner appen med koden udfyldt)
 - Log ind på en vilkårlig enhed og vælg, hvilket af sine **huse** enheden skal vise
+- Efter login åbner **udlejerskærmen** med AI quick-setup. Har kontoen kun ét hus,
+  vælges det automatisk. **Gæstevisning** låser redigeringen og huskes ved genstart.
 - Lås udlejertilstand op med **kodeordet til kontoen** (tandhjulet på forsiden)
 - Ret husinfo (baggrundsbillede, navn, velkomst, wifi, kontakt)
 - Slå sider til/fra for gæsten
 - Opret **egne kategorier** med navn og ikon (fx cykler, pool, husdyr) og slet dem igen
 - Byg siderne af blokke: tekst, billeder fra **kameraet** eller **galleriet**,
   flyt dem op/ned og slet dem
-- **Lynopsætning**: indtal en side som talebesked – den bliver transskriberet og
-  omskrevet til guidetekst med OpenAI
+- **AI quick-setup**: vælg kategorier og gennemgå hele sommerhuset i en chat.
+  Svar med tekst eller tale, få opfølgende spørgsmål og gæstevenlige tekstforslag,
+  tilføj billeder og godkend husinfo og guidesider samlet.
+- Gem og genoptag en opsætningskladde, ret tidligere svar og spring spørgsmål over.
+  Gæsterne ser først resultatet efter godkendelse.
 
 Hver udlejers huse, sider og billeder er adskilt og kan kun ses af udlejeren selv
 (og af gæsterne på den iPad, udlejeren har logget ind på).
@@ -43,13 +48,20 @@ npx expo start
 
 Scan QR-koden med Expo Go. På CBS-netværk/eduroam: `npx expo start --tunnel`.
 
-Lynopsætning kræver en OpenAI-nøgle i en `.env`-fil i projektets rod:
+AI quick-setup kræver en OpenAI-nøgle i en `.env`-fil i projektets rod:
 
 ```
 OPENAI_API_KEY=din-nøgle
 ```
 
 `.env` er udeladt fra Git og skal laves lokalt. Resten af appen virker uden.
+Efter ændringer i `.env` eller Babel-konfigurationen: genstart med `npx expo start --clear`.
+
+AI bruger den eksisterende OpenAI-integration: `gpt-5` til samtale og strukturerede
+tekstforslag, `whisper-1` til talegenkendelse. Der er ikke tilføjet npm-pakker eller
+Firebase-tjenester. Nøglen indgår fortsat i appens bundle; denne eksisterende
+begrænsning skal løses med en server, før appen distribueres bredt. Læg aldrig en
+sådan bundle på et offentligt websted.
 
 ### Test af appen
 
@@ -58,8 +70,81 @@ eksisterende testbruger eller en ubrugt invitationskode – de udleveres sammen 
 afleveringen og står ikke her, da repoet kan være offentligt.
 
 1. Tryk **Opret bruger**, skriv invitationskoden, email og kodeord
-2. Opret et hus – det får 8 standardsider med eksempeltekst
-3. Forsiden er nu gæstetilstand. Tryk på **tandhjulet** og skriv kodeordet for at redigere
+2. Opret et hus – det får 8 tomme, skjulte standardkategorier
+3. Udlejerskærmen åbner med AI quick-setup og manuel redigering.
+4. Tryk **Gæstevisning**, når iPad'en er klar til gæsterne. Tryk på **tandhjulet**
+   og skriv kodeordet for at redigere igen. Genstart bevarer gæstevisningen;
+   et nyt login med email og kodeord åbner udlejerskærmen.
+
+### Test af AI quick-setup
+
+1. Åbn **Rediger guiden → AI quick-setup**. Vælg fx Køkken, Bad og Det særlige ved huset.
+   Du kan også oprette din egen kategori.
+2. Tryk **Start samtalen**. Assistenten starter med husnavn, velkomst, wifi og kontakt.
+   Brug emnelisten til at skifte kategori. Svar med tekst, eller tryk **Indtal svar**,
+   og stop optagelsen. Talesvaret bliver automatisk transskriberet og sendt ind i
+   chatten. Ved fejl kan optagelsen prøves igen; transskriberet tekst bevares i
+   skrivefeltet, hvis AI-svaret fejler.
+3. Kontrollér opfølgende spørgsmål og tekstforslaget. **Ret svar** genoptager samtalen
+   fra det valgte svar; de efterfølgende svar i samme emne erstattes. Du kan også rette
+   gæsteteksten direkte eller springe et spørgsmål/emne over. Når assistenten har
+   gennemgået et emne, åbner det næste automatisk. Efter sidste emne åbnes billeder.
+4. Tryk **Gem og luk**, åbn quick-setuppet igen og kontrollér, at kladden er bevaret.
+   Vent på **Kladde gemt**, før appen lukkes helt. Uden netforbindelse vises en gemmefejl.
+5. Tilføj billeder fra galleri eller kamera. Højst 12 pr. kategori, under 9 MB pr. billede.
+   Hvert AI-afsnit er en separat tekstblok. Brug pilene til at flytte billeder ind
+   mellem tekstblokkene; tilføj, ret eller fjern blokke som ved manuel opsætning.
+6. Gennemse husinfo og kategorier. **Godkend og opret guide** opdaterer husinfo og
+   publicerer alle valgte kategorier med indhold i én Firestore-transaktion.
+   Tomme kategorier springes over. Eksisterende sider uden for opsætningen bevares.
+7. Åbn guiden i gæstetilstand og kontrollér tekst og billeder.
+
+Kladden gemmes som `quickSetupDraft` på husets eksisterende dokument og er beskyttet
+af de nuværende ejerregler; denne ændring kræver ingen nye regler i Firebase Console.
+Lydfiler sendes til OpenAI til transskription, men gemmes ikke i Firestore eller Storage.
+På iOS/Android læses optagelsen først som en Blob med den indbyggede lokale fillæser.
+Det gør lyduploadet kompatibelt med Expo 57; et råt `{ uri, name, type }`-objekt
+afvises af Expo med `Unsupported FormDataPart implementation`. Ingen nye pakker kræves.
+Uploadede billeder gemmes i Storage før godkendelse; som i resten af appen slettes
+filen ikke automatisk, hvis den bagefter fjernes fra kladden.
+
+Opsætningen understøtter op til 20 kategorier, 4.000 tegn pr. svar og 12 svar pr. emne.
+Hvis den publicerede husinfo eller en valgt side er ændret på en anden enhed, blokeres
+overskrivningen. Start en ny opsætning for at tage udgangspunkt i de nyeste oplysninger.
+Arbejd kun på én opsætningskladde pr. hus ad gangen.
+
+Automatiske tests (fiktive AI-, mikrofon- og Firebase-svar; ingen eksterne skrivninger):
+
+```bash
+npm test
+```
+
+Valgfri integrationstest med ét rigtigt OpenAI-kald og fiktive oplysninger
+(bruger API-forbrug, ingen Firebase-skrivninger):
+
+```bash
+node --env-file=.env tests/liveQuickSetup.cjs
+```
+
+Valgfri taletest med en lokal dansk lydfil (to OpenAI-kald, ingen Firebase-skrivninger):
+
+```bash
+node --env-file=.env tests/liveSpeech.cjs /absolut/sti/til/test.wav
+```
+
+Testklippet skal sige: "Bruseren drejes til venstre for varmt vand. Åbn vinduet efter bad."
+Den bruger Expo-versionens rigtige FormData- og multipart-kode og tester transskription
+og tekstblokke. Kun enhedens lokale fillæsning simuleres. Mikrofontilladelse og selve optagelsen skal
+også prøves på iPad'en i Expo Go.
+
+Visuel kontrol af de rigtige skærmkomponenter med fiktive data, uden login:
+
+```bash
+node tests/previewQuickSetup.cjs
+```
+
+Åbn `http://127.0.0.1:8096/?step=0&width=1194` og skift `step` mellem 0–3.
+Dette er en statisk designkontrol, ikke en interaktiv erstatning for testen i Expo Go.
 
 ## Arkitektur
 
@@ -76,7 +161,7 @@ Appen har ingen egen server. Den bruger **Firebase** direkte:
 ```
 invites/{KODE}                 { used, usedBy }
 users/{uid}                    { email, inviteCode, createdAt }
-houses/{houseId}               { ownerId, name, welcome, wifiName, coverUrl, ... }
+houses/{houseId}               { ownerId, name, welcome, wifiName, coverUrl, ..., quickSetupDraft? }
 houses/{houseId}/pages/{id}    { title, icon, active, order, blocks, custom }
 ```
 
@@ -102,7 +187,8 @@ data/const.js       standardtekster og -sider, som nye huse oprettes ud fra
 database/           al kode, der taler med Firebase
 firebase/           sikkerhedsregler til Firestore og Storage
 screens/            én fil pr. skærm (13 skærme)
-services/           kald til OpenAI (talebesked → tekst → guidetekst)
+services/           AI-samtale, talegenkendelse, opsætningslogik og kladdegemning
+tests/              flow-, fejl- og gemmetests samt visuel kontrol med fiktive data
 styles/             al styling i GlobalStyle.js
 assets/             lokale billeder (forsidens baggrund, app-ikon)
 ```

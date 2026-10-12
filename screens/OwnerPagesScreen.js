@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Text, View, FlatList, Pressable, Switch, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +10,8 @@ import { auth, updatePage, deletePage } from '../database/database';
 
 // Udlejer: liste over ALLE sider. Switch slår siden til/fra for gæsten,
 // tryk på rækken åbner redigering. Egne kategorier kan oprettes og slettes.
-export default function OwnerPagesScreen({ navigation, houseId, pages, setPages }) {
+export default function OwnerPagesScreen({ navigation, houseId, pages, setPages, onShowGuest }) {
+  const [modeError, setModeError] = useState('');
   function toggleActive(pageId) {
     // State må ikke ændres direkte. Vi laver et nyt array, hvor kun den
     // valgte side er byttet ud med en kopi, der har active vendt om.
@@ -50,6 +52,28 @@ export default function OwnerPagesScreen({ navigation, houseId, pages, setPages 
         contentContainerStyle={GlobalStyle.ownerList}
         ListHeaderComponent={
           <View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Åbn gæstevisning"
+              style={({ pressed }) => [GlobalStyle.ownerRow, pressed && GlobalStyle.ownerRowPressed]}
+              onPress={() => onShowGuest().catch(() => setModeError('Gæstevisning kunne ikke åbnes. Prøv igen.'))}>
+              <Ionicons name="eye-outline" size={28} color={GlobalStyle.colors.accent} />
+              <View style={GlobalStyle.ownerRowText}><Text style={GlobalStyle.ownerRowTitle}>Gæstevisning</Text>
+                <Text style={GlobalStyle.ownerRowStatus}>Vis guiden for gæsterne og lås redigering</Text></View>
+              <Ionicons name="chevron-forward" size={24} color={GlobalStyle.colors.textMuted} />
+            </Pressable>
+            {!!modeError && <Text style={GlobalStyle.ownerError}>{modeError}</Text>}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Åbn AI quick-setup"
+              style={({ pressed }) => [GlobalStyle.setupEntry, pressed && GlobalStyle.ownerRowPressed]}
+              onPress={() => navigation.navigate('QuickSetup')}
+            >
+              <View style={GlobalStyle.setupEntryIcon}><Ionicons name="sparkles-outline" size={32} color={GlobalStyle.colors.accent} /></View>
+              <View style={GlobalStyle.ownerRowText}>
+                <Text style={GlobalStyle.ownerRowTitle}>AI quick-setup</Text>
+                <Text style={GlobalStyle.ownerRowStatus}>Fortæl om dit sommerhus med tekst eller tale. Vi hjælper dig med resten.</Text>
+              </View>
+              <Ionicons name="arrow-forward-outline" size={28} color={GlobalStyle.colors.accent} />
+            </Pressable>
             {/* Husinfo: baggrund, navn, velkomst, wifi og kontakt på forsiden */}
             <Pressable
               style={({ pressed }) => [GlobalStyle.ownerRow, pressed && GlobalStyle.ownerRowPressed]}
@@ -64,8 +88,7 @@ export default function OwnerPagesScreen({ navigation, houseId, pages, setPages 
             </Pressable>
 
             <Text style={GlobalStyle.ownerListHint}>
-              Slå sider til eller fra med kontakten. Tryk på en side for at redigere tekst,
-              eller tryk på mikrofonen for at indtale indholdet.
+              Slå sider til eller fra med kontakten. Tryk på en side for at redigere tekst og billeder.
             </Text>
           </View>
         }
@@ -108,22 +131,12 @@ export default function OwnerPagesScreen({ navigation, houseId, pages, setPages 
                 {item.active ? 'Vises for gæsten' : 'Skjult'}
               </Text>
             </View>
-            {/* Genvej til lynopsætning: indtal siden i stedet for at skrive den */}
-            <Pressable
-              style={({ pressed }) => [
-                GlobalStyle.ownerRowMic,
-                pressed && GlobalStyle.ownerRowMicPressed,
-              ]}
-              onPress={() => navigation.navigate('QuickSetup', { pageId: item.id })}
-            >
-              <Ionicons name="mic" size={24} color={GlobalStyle.colors.accent} />
-            </Pressable>
             {/* Kun egne kategorier kan slettes – standardkategorierne kan kun slås fra */}
             {item.custom && (
               <Pressable
                 style={({ pressed }) => [
-                  GlobalStyle.ownerRowMic,
-                  pressed && GlobalStyle.ownerRowMicPressed,
+                  GlobalStyle.ownerRowAction,
+                  pressed && GlobalStyle.ownerRowActionPressed,
                 ]}
                 onPress={() => confirmDelete(item)}
               >

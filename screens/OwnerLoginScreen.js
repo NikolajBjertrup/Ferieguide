@@ -12,7 +12,7 @@ import { auth, authErrorMessage } from '../database/database';
 // Udlejer: skriv kodeordet til kontoen for at låse redigering op.
 // Enheden er allerede logget ind (så gæsten kan se guiden), men gæsten
 // kender ikke kodeordet og kan derfor ikke komme i udlejertilstand.
-export default function OwnerLoginScreen({ navigation }) {
+export default function OwnerLoginScreen({ onUnlock }) {
   // Lokal state: det brugeren har tastet, og en evt. fejlbesked
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -29,9 +29,8 @@ export default function OwnerLoginScreen({ navigation }) {
       const credential = EmailAuthProvider.credential(email, password);
       await reauthenticateWithCredential(auth.currentUser, credential);
 
-      // replace i stedet for navigate: login-skærmen fjernes fra stacken,
-      // så "tilbage" fra udlejer-siderne går til forsiden, ikke til login
-      navigation.replace('OwnerPages');
+      // App.js skifter hele navigationen fra gæst til udlejer efter re-autentificering.
+      await onUnlock();
     } catch (e) {
       setError(authErrorMessage(e));
       setPassword('');

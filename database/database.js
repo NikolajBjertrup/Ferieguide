@@ -21,9 +21,13 @@ import {
   where,
   writeBatch,
   serverTimestamp,
+  runTransaction,
+  deleteField,
 } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { HOUSE, PAGES } from '../data/const';
+import { PAGES } from '../data/const';
+import { HOUSE_FIELDS } from '../data/quickSetup';
+import { buildPageBlocks, pageSnapshot, setupPages } from '../services/quickSetup';
 
 // Indsæt dit eget firebaseConfig fra Firebase Console her
 // (Project settings → Your apps → din web-app).
@@ -58,8 +62,7 @@ const storage = getStorage(app);
 // Husets sider ligger i en undercollection: houses/{houseId}/pages/{pageId}.
 
 // Opretter et nyt hus for den udlejer, der er logget ind, og giver husets id tilbage.
-// Huset får standardteksterne fra const.js og de 8 standardsider, som udlejeren
-// derefter kan rette til.
+// Nye huse starter uden opdigtet gæsteinformation. Kategorierne udfyldes af ejeren.
 async function createHouse(name) {
   const houseRef = doc(collection(db, 'houses')); // nyt dokument med et automatisk id
 
@@ -68,11 +71,11 @@ async function createHouse(name) {
   batch.set(houseRef, {
     ownerId: auth.currentUser.uid,
     name: name.trim(),
-    welcome: HOUSE.welcome,
-    wifiName: HOUSE.wifiName,
-    wifiPassword: HOUSE.wifiPassword,
-    ownerName: HOUSE.ownerName,
-    ownerPhone: HOUSE.ownerPhone,
+    welcome: '',
+    wifiName: '',
+    wifiPassword: '',
+    ownerName: '',
+    ownerPhone: '',
     createdAt: serverTimestamp(),
   });
 
@@ -83,8 +86,8 @@ async function createHouse(name) {
     batch.set(doc(db, 'houses', houseRef.id, 'pages', page.id), {
       title: page.title,
       icon: page.icon,
-      active: page.active,
-      blocks: page.blocks,
+      active: false,
+      blocks: [],
       order: i,
     });
   }
@@ -114,6 +117,50 @@ async function getHouse(houseId) {
 // Gemmer ændringer i husets info, fx updateHouse(houseId, { wifiPassword: 'ny-kode' })
 async function updateHouse(houseId, changes) {
   await updateDoc(doc(db, 'houses', houseId), changes);
+}
+
+// Kladden er et felt på huset og er dækket af husets eksisterende ejerregler.
+async function saveQuickSetupDraft(houseId, draft) {
+  if (JSON.stringify(draft).length > 280000) throw new Error('Kladden er for stor. Forkort nogle af svarene, før du gemmer.');
+  await updateDoc(doc(db, 'houses', houseId), { quickSetupDraft: draft });
+}
+
+// Alle godkendte sider og husinfo publiceres samlet. En fejl efterlader kladden intakt.
+// Kontrollen af udgangspunktet forhindrer overskrivning af ændringer fra en anden enhed.
+async function publishQuickSetup(houseId, draft) {
+  const selected = setupPages(draft).filter((page) => page.publishable);
+  if (!draft.houseInfo.name.trim()) throw new Error('Giv sommerhuset et navn før godkendelse.');
+  const houseRef = doc(db, 'houses', houseId);
+  return runTransaction(db, async (transaction) => {
+    const houseDoc = await transaction.get(houseRef);
+    if (!houseDoc.exists()) throw new Error('Sommerhuset findes ikke længere.');
+    const currentHouse = houseDoc.data();
+    const snapshots = [];
+    for (const page of selected) snapshots.push(await transaction.get(doc(db, 'houses', houseId, 'pages', page.id)));
+    const houseChanges = {};
+    for (const key of HOUSE_FIELDS) {
+      if (draft.houseInfo[key] !== draft.baseHouse[key]) {
+        if ((currentHouse[key] || '') !== draft.baseHouse[key]) throw new Error('Husinfo er ændret siden opsætningen startede. Start en ny opsætning for at bruge de nyeste oplysninger.');
+        houseChanges[key] = draft.houseInfo[key];
+      }
+    }
+    const updatedPages = selected.map((page, index) => {
+      const snapshot = snapshots[index];
+      const current = snapshot.exists() ? pageSnapshot(snapshot.data()) : null;
+      if (JSON.stringify(current) !== JSON.stringify(pageSnapshot(page.basePage))) {
+        throw new Error(`“${page.title}” er ændret siden opsætningen startede. Start en ny opsætning for at bruge den nyeste version.`);
+      }
+      return {
+        id: page.id, title: page.title, icon: page.icon, active: true,
+        order: page.basePage?.order ?? draft.newPageOrder + index,
+        custom: page.basePage?.custom ?? true, blocks: buildPageBlocks(page, page.id),
+      };
+    });
+    updatedPages.forEach(({ id, ...page }) => transaction.set(doc(db, 'houses', houseId, 'pages', id), page));
+    transaction.update(houseRef, { ...houseChanges, quickSetupDraft: deleteField() });
+    const { quickSetupDraft, ...house } = currentHouse;
+    return { house: { ...house, ...houseChanges, id: houseId }, pages: updatedPages };
+  });
 }
 
 // ---------- Sider ----------
@@ -257,6 +304,8 @@ export {
   getHouses,
   getHouse,
   updateHouse,
+  saveQuickSetupDraft,
+  publishQuickSetup,
   getPages,
   createPage,
   deletePage,

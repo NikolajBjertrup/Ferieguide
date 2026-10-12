@@ -62,7 +62,8 @@ service cloud.firestore {
       // Kun ejeren må se, rette og slette sit hus
       allow read, delete: if signedIn() && resource.data.ownerId == request.auth.uid;
 
-      // Ejeren må rette husinfo, men ikke give huset til en anden
+      // Ejeren må rette husinfo og quickSetupDraft (privat opsætningskladde),
+      // men ikke give huset til en anden. Kladden indeholder ikke lydfiler.
       allow update: if signedIn()
         && resource.data.ownerId == request.auth.uid
         && request.resource.data.ownerId == resource.data.ownerId;
