@@ -17,6 +17,7 @@ function appHarness({ savedMode, savedHouse = 'hus1', houses = [{ id: 'hus1' }],
     react: driver.hooks, 'react/jsx-runtime': { jsx: node, jsxs: node, Fragment: 'Fragment' },
     'react-native': { View: 'View', Text: 'Text', ActivityIndicator: 'ActivityIndicator' },
     'components/ButtonComponent.js': { __esModule: true, default: 'Button' },
+    'components/HeaderSafeAreaComponent.js': { __esModule: true, default: 'HeaderSafeArea' },
     '@react-navigation/native': { NavigationContainer: 'NavigationContainer' },
     '@react-navigation/native-stack': { createNativeStackNavigator: () => ({ Screen: 'Screen', Navigator: 'Navigator' }) },
     'firebase/auth': { onAuthStateChanged: (_auth, callback) => { listener = callback; return () => {}; } },
@@ -33,9 +34,16 @@ function appHarness({ savedMode, savedHouse = 'hus1', houses = [{ id: 'hus1' }],
   return {
     async auth(user) { await listener(user); for (let i = 0; i < 3; i++) { render(); await tick(); } },
     names: () => routes().map((element) => element.props.name),
+    routes,
     button(title) { return flatten(render()).find((element) => element.type === 'Button' && element.props.title === title)?.props; },
     failHouse(value) { failHouse = value; },
-    props(name) { const route = routes().find((element) => element.props.name === name); return route.props.children({}).props; },
+    props(name) {
+      const route = routes().find((element) => element.props.name === name);
+      // Skærme med topbjælke er pakket ind i HeaderSafeArea; testen skal se selve skærmens props
+      let element = route.props.children({});
+      if (element.type === 'HeaderSafeArea') element = element.props.children;
+      return element.props;
+    },
     async settle() { render(); await tick(); render(); }, storage,
   };
 }
@@ -91,4 +99,18 @@ test('én bolig vælges automatisk efter login, flere kræver et valg', async ()
   assert.deepEqual(many.names(), ['ChooseHouse']);
   many.props('ChooseHouse').selectHouse('b'); await many.settle();
   assert.equal(many.names()[0], 'OwnerPages');
+});
+
+test('alle skærme med topbjælke skubbes ned under bjælken (iOS 26), skærme uden bjælke gør ikke', async () => {
+  const checkAll = (h) => {
+    for (const route of h.routes()) {
+      const wrapped = route.props.children({}).type === 'HeaderSafeArea';
+      const hasHeader = route.props.options?.headerShown !== false;
+      assert.equal(wrapped, hasHeader, route.props.name);
+    }
+  };
+  const loggedOut = appHarness(); await loggedOut.auth(null); checkAll(loggedOut);
+  const owner = appHarness(); await owner.auth({ uid: 'ejer' }); checkAll(owner);
+  const guest = appHarness({ savedMode: 'guest' }); await guest.auth({ uid: 'ejer' }); checkAll(guest);
+  const choose = appHarness({ savedHouse: null, houses: [{ id: 'a' }, { id: 'b' }] }); await choose.auth({ uid: 'ejer' }); checkAll(choose);
 });

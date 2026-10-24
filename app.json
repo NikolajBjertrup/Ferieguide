@@ -48,7 +48,8 @@
         {
           "photosPermission": "FerieGuide bruger dine billeder, når du vælger billeder til din husguide."
         }
-      ]
+      ],
+      "expo-asset"
     ]
   }
 }

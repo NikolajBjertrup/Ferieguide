@@ -20,6 +20,7 @@ import HousesScreen from './screens/HousesScreen';
 import EditHouseScreen from './screens/EditHouseScreen';
 import NewPageScreen from './screens/NewPageScreen';
 import ButtonComponent from './components/ButtonComponent';
+import HeaderSafeArea from './components/HeaderSafeAreaComponent';
 
 import { GlobalStyle } from './styles/GlobalStyle';
 import { auth, getHouse, getHouses, getPages } from './database/database';
@@ -182,57 +183,59 @@ export default function App() {
             <Stack.Screen name="Login" options={{ headerShown: false }}>
               {(props) => <LoginScreen {...props} onLoginStart={() => { explicitLogin.current = true; }} />}
             </Stack.Screen>
-            <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Opret bruger' }} />
+            <Stack.Screen name="Register" options={{ title: 'Opret bruger' }}>
+              {(props) => <HeaderSafeArea><RegisterScreen {...props} /></HeaderSafeArea>}
+            </Stack.Screen>
           </>
         ) : houseId === null && !ownerMode ? (
           <Stack.Screen name="OwnerLogin" options={{ title: 'Udlejer-login' }}>
-            {(props) => <OwnerLoginScreen {...props} onUnlock={unlockOwnerMode} />}
+            {(props) => <HeaderSafeArea><OwnerLoginScreen {...props} onUnlock={unlockOwnerMode} /></HeaderSafeArea>}
           </Stack.Screen>
         ) : houseId === null ? (
           // Logget ind, men enheden har ikke valgt hus endnu
           <Stack.Screen name="ChooseHouse" options={{ title: 'Vælg hus' }}>
-            {(props) => <HousesScreen {...props} houseId={houseId} selectHouse={selectHouse} />}
+            {(props) => <HeaderSafeArea><HousesScreen {...props} houseId={houseId} selectHouse={selectHouse} /></HeaderSafeArea>}
           </Stack.Screen>
         ) : (
           <>
             {ownerMode ? <>
             <Stack.Screen name="OwnerPages" options={{ title: 'Rediger guiden' }}>
-              {(props) => <OwnerPagesScreen {...props} houseId={houseId} pages={pages} setPages={setPages} onShowGuest={showGuestMode} />}
+              {(props) => <HeaderSafeArea><OwnerPagesScreen {...props} houseId={houseId} pages={pages} setPages={setPages} onShowGuest={showGuestMode} /></HeaderSafeArea>}
             </Stack.Screen>
             <Stack.Screen name="EditHouse" options={{ title: 'Husinfo' }}>
-              {(props) => <EditHouseScreen {...props} house={house} setHouse={setHouse} />}
+              {(props) => <HeaderSafeArea><EditHouseScreen {...props} house={house} setHouse={setHouse} /></HeaderSafeArea>}
             </Stack.Screen>
             <Stack.Screen name="NewPage" options={{ title: 'Ny kategori' }}>
-              {(props) => <NewPageScreen {...props} houseId={houseId} pages={pages} setPages={setPages} />}
+              {(props) => <HeaderSafeArea><NewPageScreen {...props} houseId={houseId} pages={pages} setPages={setPages} /></HeaderSafeArea>}
             </Stack.Screen>
             <Stack.Screen name="EditPage" options={{ title: 'Rediger side' }}>
-              {(props) => <EditPageScreen {...props} houseId={houseId} pages={pages} setPages={setPages} />}
+              {(props) => <HeaderSafeArea><EditPageScreen {...props} houseId={houseId} pages={pages} setPages={setPages} /></HeaderSafeArea>}
             </Stack.Screen>
             <Stack.Screen name="QuickSetup" options={{ title: 'AI quick-setup', gestureEnabled: false }}>
-              {(props) => <QuickSetupScreen {...props} houseId={houseId} setPages={setPages} setHouse={setHouse} />}
+              {(props) => <HeaderSafeArea><QuickSetupScreen {...props} houseId={houseId} setPages={setPages} setHouse={setHouse} /></HeaderSafeArea>}
             </Stack.Screen>
             {/* Kameraet har ikke brug for pages – det sender bare billedlinket tilbage til EditPage */}
             <Stack.Screen name="Camera" options={{ title: 'Tag billede' }}>
-              {(props) => <CameraScreen {...props} houseId={houseId} />}
+              {(props) => <HeaderSafeArea><CameraScreen {...props} houseId={houseId} /></HeaderSafeArea>}
             </Stack.Screen>
             {/* "Skift hus" fra udlejertilstand. Samme skærm som ChooseHouse, men med et andet navn,
                 så React Navigation ved, at det er to forskellige steder i appen. */}
             <Stack.Screen name="Houses" options={{ title: 'Skift hus' }}>
-              {(props) => <HousesScreen {...props} houseId={houseId} selectHouse={selectHouse} />}
+              {(props) => <HeaderSafeArea><HousesScreen {...props} houseId={houseId} selectHouse={selectHouse} /></HeaderSafeArea>}
             </Stack.Screen>
             </> : <>
               <Stack.Screen name="Home" options={{ headerShown: false }}>
                 {(props) => <HomeScreen {...props} house={house} />}
               </Stack.Screen>
               <Stack.Screen name="OwnerLogin" options={{ title: 'Udlejer-login' }}>
-                {(props) => <OwnerLoginScreen {...props} onUnlock={unlockOwnerMode} />}
+                {(props) => <HeaderSafeArea><OwnerLoginScreen {...props} onUnlock={unlockOwnerMode} /></HeaderSafeArea>}
               </Stack.Screen>
             </>}
             <Stack.Screen name="Guide" options={{ title: 'Guiden' }}>
-              {(props) => <GuideScreen {...props} pages={pages} />}
+              {(props) => <HeaderSafeArea><GuideScreen {...props} pages={pages} /></HeaderSafeArea>}
             </Stack.Screen>
             <Stack.Screen name="Page" options={{ title: '' }}>
-              {(props) => <PageScreen {...props} pages={pages} />}
+              {(props) => <HeaderSafeArea><PageScreen {...props} pages={pages} /></HeaderSafeArea>}
             </Stack.Screen>
           </>
         )}

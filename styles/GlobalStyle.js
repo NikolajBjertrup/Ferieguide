@@ -34,6 +34,11 @@ const styles = StyleSheet.create({
   screenContent: {
     backgroundColor: COLORS.background,
   },
+  // HeaderSafeAreaComponent: skubber indholdet ned under topbjælken på iOS 26+
+  headerSafeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
 
   // GuideScreen
   guideContainer: {

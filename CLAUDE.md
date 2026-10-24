@@ -72,32 +72,32 @@ Fordi appen skal bruges af rigtige mennesker, gælder:
 ## 3. Teknisk stak
 
 Oprindeligt baseret på kursets undervisningsrepo (CBS-INNT-26) på Expo
-~53.0.22. Opgraderet 2026-09-11 til SDK 57, fordi Expo Go på telefonen
-kun understøtter nyeste SDK. Opgradér ikke SDK eller større biblioteker uden
+~53.0.22. Opgraderet 2026-09-11 til SDK 57 og 2026-10-24 til SDK 58, fordi Expo Go
+på telefonen kun understøtter nyeste SDK. Opgradér ikke SDK eller større biblioteker uden
 at spørge.
 
 ```
-expo                                ~57.0.26
-react                               19.2.3
-react-native                        0.86.3
+expo                                ~58.0.19
+react                               19.3.0
+react-native                        0.88.0
 @react-navigation/native            ^6.1.18   (v6 – ikke v7)
 @react-navigation/native-stack      ^6.11.0
-react-native-screens                ~4.26.0
-react-native-safe-area-context      ~5.7.0
-react-native-gesture-handler        ~2.32.0
-react-native-reanimated             4.5.1
-react-native-worklets               0.10.1
+react-native-screens                ~4.30.0
+react-native-safe-area-context      ~5.10.1
+react-native-gesture-handler        ~3.3.0
+react-native-reanimated             4.7.1
+react-native-worklets               0.13.0
 expo-splash-screen / expo-status-bar / expo-font / expo-asset
 @expo/vector-icons                  (Ionicons)
 
 firebase                            ^12.19.0  Auth, Firestore, Storage
 @react-native-async-storage/async-storage  ^2.2.0  husker login + valgt hus
-expo-camera                         ~57.0.6   tag billede (kursets 07_kamera)
-expo-image-picker                   ~57.0.20  vælg billede fra galleri
-expo-audio                          ~57.0.5   talesvar i AI quick-setup
-expo-linking                        ~57.0.11  deep link til "Opret bruger"
+expo-camera                         ~58.0.12   tag billede (kursets 07_kamera)
+expo-image-picker                   ~58.0.10  vælg billede fra galleri
+expo-audio                          ~58.0.10   talesvar i AI quick-setup
+expo-linking                        ~58.0.14  deep link til "Opret bruger"
 react-native-dotenv                 ^3.4.11   OPENAI_API_KEY fra .env
-babel-preset-expo                   ~57.0.0   (devDependency)
+babel-preset-expo                   ~58.0.0   (devDependency)
 ```
 
 Ikke i brug lige nu: `react-native-gifted-chat`, `react-native-keyboard-controller`,
@@ -105,7 +105,7 @@ Ikke i brug lige nu: `react-native-gifted-chat`, `react-native-keyboard-controll
 
 Bemærk: `react-native-reanimated` 4.x kræver New Architecture og
 `react-native-worklets`. `app.json` bruger config-plugins for
-`expo-splash-screen`, `expo-audio`, `expo-camera` og `expo-image-picker`.
+`expo-splash-screen`, `expo-audio`, `expo-camera`, `expo-image-picker` og `expo-asset`.
 
 **Kræver at du spørger mig først** (foreslå og begrund – jeg godkender):
 
@@ -139,6 +139,7 @@ components/                 ← genbrugelige komponenter
   IconPickerComponent.js    ← gitter til at vælge en kategoris ikon
   GuideBlocksEditor.js      ← tekst-/billedblokke med flytning og sletning i quick-setup
   GuideAgentComponent.js    ← appens hjælper: hus-figur tegnet i kode + taleboble; `GuideAgentIcon` er den lille udgave ved beskeder i samtalen
+  HeaderSafeAreaComponent.js ← skubber indholdet ned under topbjælken på iOS 26+ (se §11). Alle skærme med topbjælke pakkes ind i App.js
 data/
   const.js                  ← HOUSE og PAGES (skabelon for nye huse) + ICONS (ikonvalg)
   quickSetup.js             ← quick-setups kategorier, grupper (SETUP_GROUPS), trin, startsidens tekster, RECOMMENDED_IDS og AGENT_NAME
@@ -300,7 +301,7 @@ setup pr. hus ad gangen. Kladden kræver netværk; **Kladde gemt** bekræfter ge
 med mocks. `tests/liveSpeech.cjs` kan teste en lokal lydfil gennem den rigtige
 OpenAI-integration. Mikrofonoptagelse og Firebase skal også prøves i Expo Go på enheden.
 
-Lydupload i Expo 57: global `fetch` bruger Expo og afviser React Natives gamle
+Lydupload i Expo 57/58: global `fetch` bruger Expo og afviser React Natives gamle
 `FormData.append('file', { uri, name, type })`. `Request.js` læser derfor den lokale
 lydfil med indbygget `XMLHttpRequest` (`responseType: 'blob'`) og tilføjer Blob +
 filnavn til FormData. Filindlæsning har timeout/afbrydelse; native blobs frigives
@@ -394,6 +395,16 @@ Efter installation af nye pakker eller ændringer i `app.json`: genstart Expo he
 - Visning af hvilke sider gæsterne bruger (kræver godkendelse af evt. ny tjeneste)
 
 ### Kendte begrænsninger
+
+- **Topbjælken på iOS 26 (midlertidig løsning).** Fra Expo SDK 58 (`react-native-screens` 4.30)
+  lægges skærmen bag topbjælken på iOS 26+, og navigationen forventes selv at skubbe indholdet
+  ned. Det gør React Navigation v7, men ikke v6. Indtil vi opgraderer, pakkes hver skærm med
+  topbjælke ind i `HeaderSafeAreaComponent` i `App.js` – også nye skærme. Komponenten bruger
+  `react-native-screens`' egen `SafeAreaView` (intern sti), fordi den fra
+  `react-native-safe-area-context` ikke kender topbjælkens højde
+  (`tests/navigation.test.cjs` fejler, hvis en skærm mangler). Ved opgradering til v7: fjern
+  komponenten, og ret kameraets `navigate(... merge: true)` til `popTo`, da `navigate` i v7
+  ikke længere går tilbage til en skærm i stakken.
 
 - **OpenAI-nøglen ligger i app-koden** (`react-native-dotenv` bager den ind i
   bundlen). Acceptabelt på en lukket TestFlight-iPad med beløbsgrænse på
