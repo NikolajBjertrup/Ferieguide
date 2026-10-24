@@ -10,7 +10,7 @@ Godkendelsesopgave 2 i kurset INNT på CBS (E26).
 
 ## Demovideo
 
-_Link følger_
+(https://youtube.com/shorts/BmQOMtlCJGU?feature=share)
 
 ## Hvem har kodet hvad
 
