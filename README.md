@@ -14,6 +14,8 @@ Godkendelsesopgave 2 i kurset INNT på CBS (E26).
 
 ## Hvem har kodet hvad
 
+Vi har ofte kodet sammen og på hinandens computere, så commits i git står ikke altid i navnet på den, der har lavet skærmen. Tabellen viser, hvem der har stået for hvad.
+
 | Navn | Skærme |
 |---|---|
 | Ole | [Quick setup](screens/QuickSetupScreen.js) og [Houses](screens/HousesScreen.js) |
