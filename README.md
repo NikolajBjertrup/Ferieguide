@@ -14,15 +14,12 @@ Godkendelsesopgave 2 i kurset INNT på CBS (E26).
 
 ## Hvem har kodet hvad
 
-AI quick-setup ligger i én skærm, [`QuickSetupScreen.js`](screens/QuickSetupScreen.js),
-med et trin pr. side. Linkene peger på de linjer, hvor hvert trin bygges.
-
-| Navn | Skærme / funktioner |
+| Navn | Skærme |
 |---|---|
-| Ole | AI quick-setup: [startside](screens/QuickSetupScreen.js#L523-L549) og [kategorier](screens/QuickSetupScreen.js#L555-L593) (inkl. [bundlinjen](screens/QuickSetupScreen.js#L629-L636)) |
-| Nikolaj | [Login](screens/LoginScreen.js) og [overblik over alle boliger](screens/HousesScreen.js) |
-| Daniel | AI quick-setup: [samtale](screens/QuickSetupScreen.js#L443-L517) og [billeder](screens/QuickSetupScreen.js#L595-L606) |
-| Anton | AI quick-setup: [godkend](screens/QuickSetupScreen.js#L608-L621) (gemmes med [`publishQuickSetup`](database/database.js#L130)) |
+| Ole | [Quick setup](screens/QuickSetupScreen.js) og [Houses](screens/HousesScreen.js) |
+| Nikolaj | [Login](screens/LoginScreen.js) og [Register](screens/RegisterScreen.js) |
+| Anton | [EditHouse](screens/EditHouseScreen.js) |
+| Daniel | [Camera](screens/CameraScreen.js) og [New page](screens/NewPageScreen.js) |
 
 ## Funktioner
 
