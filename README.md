@@ -36,7 +36,7 @@ Vi har ofte kodet sammen og på hinandens computere, så commits i git står ikk
 
 | Krav | Hvor |
 |---|---|
-| Nye knapper | `ButtonComponent`, fx "Se guiden", "Gæstevisning", "Kom i gang" |
+| Nye knapper | `ButtonComponent`, fx "Kom i gang" (QuickSetup), "Brug billede" (Camera), "Gem" (EditHouse) |
 | 1 ny skærm pr. gruppemedlem | Se "Hvem har kodet hvad" |
 | Navigation mellem skærme | Stack Navigator i `App.js` |
 | Ny funktionalitet | Generativ AI (OpenAI), talegenkendelse og kamera |
