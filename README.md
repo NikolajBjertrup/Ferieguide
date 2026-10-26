@@ -1,3 +1,7 @@
+# Invitationskoder
+Hvis i vil teste appen, kan i oprette en bruger med invitationskoderne:
+"testkode1", "testkode2" og "testkode3"
+
 # FerieGuide
 
 En React Native-app til **udlejere af ferieboliger**. Udlejeren bygger en digital
